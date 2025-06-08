@@ -12,7 +12,7 @@ ImGuiService* ImGuiService::Init(const HWND& acWindow, ID3D11Device* apDevice, I
 {
     if (!s_instance)
     {
-        OriginalWndProc = reinterpret_cast<WNDPROC>(SetWindowLongPtr(g_window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(WndProcHook)));
+        OriginalWndProc = reinterpret_cast<WNDPROC>(SetWindowLongPtrA(g_window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(WndProcHook)));
         s_instance = new ImGuiService(acWindow, apDevice, apContext);
     }
     return s_instance;
@@ -28,8 +28,10 @@ ImGuiService* ImGuiService::Get()
     return s_instance;
 }
 
-LRESULT ImGuiService::WndProcHook(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK ImGuiService::WndProcHook(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    Log::Get()->Print("run wndprochook");
+
     if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
         return true;
 
@@ -215,7 +217,7 @@ bool ImGuiService::Test()
                 return false;
             }
 
-            Hooks::MethodsTable = static_cast<uint64_t*>(::calloc(205, sizeof(uint64_t)));
+            Hooks::MethodsTable = static_cast<uint64_t*>(calloc(205, sizeof(uint64_t)));
             memcpy(Hooks::MethodsTable, *reinterpret_cast<uint64_t**>(swapChain), 18 * sizeof(uint64_t));
             memcpy(Hooks::MethodsTable + 18, *reinterpret_cast<uint64_t**>(device), 43 * sizeof(uint64_t));
             memcpy(Hooks::MethodsTable + 18 + 43, *reinterpret_cast<uint64_t**>(context), 144 * sizeof(uint64_t));

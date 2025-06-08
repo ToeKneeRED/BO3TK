@@ -46,18 +46,6 @@ void Dashboard::AddButton(const char* acName, Button* apButton)
     Buttons.insert({acName, apButton});
 
     Layout->addWidget(apButton);
-
-    /*auto* rowLayout = new QHBoxLayout;
-
-    auto* input = new InputField(acDefaultText.c_str());
-    input->setMinimumWidth(600);
-    input->setStyleSheet("QLineEdit { padding: 5px; border-radius: 5px; border: 1px solid #ccc; }");
-
-    rowLayout->addWidget(apButton);
-    rowLayout->addWidget(input);
-
-    Layout->addLayout(rowLayout);
-    });*/
 }
 
 Button* Dashboard::CreateButton(const char* acName, const char* acText)

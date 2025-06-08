@@ -8,8 +8,6 @@
 #include "ImGuiService.h"
 #include "Log.h"
 
-namespace
-{
 auto* g_log = Log::Get();
 std::atomic g_stop = false;
 
@@ -56,10 +54,6 @@ __int64 __fastcall HookSub_141E3FD80(__int64 a1, __int64 a2)
 
     return OriginalSub(a1, a2);
 }
-} // namespace anonymous
-
-namespace
-{
 
 DWORD WINAPI MainThread(const std::atomic<bool>& aStop)
 {
@@ -92,16 +86,17 @@ DWORD WINAPI MainThread(const std::atomic<bool>& aStop)
             if (aStop)
                 return FALSE;
 
-            g_log->Warn("{}Waiting for Present hook...", NarrowText::Foreground::Yellow);
+            g_log->Print("{}Waiting for Present hook...", NarrowText::Foreground::Yellow);
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
         } while (!Hooks::BindVTable(8, reinterpret_cast<void**>(&Hooks::OriginalPresent), &Hooks::HookPresent));
+
+        g_log->Print("{}Present hooked", NarrowText::Foreground::Green);
     }
 
     CREATE_HOOK(ADDRESS(0x1E3FD80), HookSub_141E3FD80, OriginalSub)
     ENABLE_HOOK(ADDRESS(0x1E3FD80))
 
     return TRUE;
-}
 }
 
 static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)

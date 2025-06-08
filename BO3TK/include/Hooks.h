@@ -20,10 +20,7 @@ inline ID3D11Device* g_pDevice = nullptr;
 inline ID3D11DeviceContext* g_pContext = nullptr;
 inline ID3D11RenderTargetView* g_mainRenderTargetView;
 
-namespace
-{
-ImGuiService* g_imguiService = nullptr;
-}
+inline ImGuiService* g_imguiService = nullptr;
 
 #define CREATE_HOOK(target, detour, original)\
     g_status = MH_CreateHook((void*)(target), (LPVOID) &detour, (LPVOID*)&original);\
@@ -119,19 +116,38 @@ inline HRESULT __stdcall HookPresent(IDXGISwapChain* pSwapChain, UINT SyncInterv
         if (SUCCEEDED(pSwapChain->GetDevice(__uuidof(ID3D11Device), reinterpret_cast<void**>(&g_pDevice))))
         {
             g_pDevice->GetImmediateContext(&g_pContext);
-            DXGI_SWAP_CHAIN_DESC sd;
-            pSwapChain->GetDesc(&sd);
-            g_window = sd.OutputWindow;
+
+            DXGI_SWAP_CHAIN_DESC swapChainDesc;
+            HRESULT result = pSwapChain->GetDesc(&swapChainDesc);
+            if (FAILED(result))
+            {
+                Log::Get()->Error("Failed to get swapchain description");
+                return result;
+            }
+            g_window = swapChainDesc.OutputWindow;
+
             ID3D11Texture2D* pBackBuffer;
-            pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<LPVOID*>(&pBackBuffer));
-            g_pDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_mainRenderTargetView);
+            result = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<LPVOID*>(&pBackBuffer));
+            if (FAILED(result))
+            {
+                Log::Get()->Error("Failed to get swapchain back buffer");
+                return result;
+            }
+
+            result = g_pDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_mainRenderTargetView);
+            if (FAILED(result))
+            {
+                Log::Get()->Error("Failed to create render target view");
+                return result;
+            }
             pBackBuffer->Release();
+
             g_imguiService = ImGuiService::Init(g_window, g_pDevice, g_pContext);
             init = true;
         }
         else
         {
-            Log::Get()->Error("Failed to retrieve ID3D11Device from IDXGISwapChain");
+            Log::Get()->Error("Failed to get device from swapchain");
             return OriginalPresent(pSwapChain, SyncInterval, Flags);
         }
     }
