@@ -29,6 +29,20 @@ Button::Button(const QString& text, QWidget* parent)
             background-color: #1e1e1e;
         }
     )");
+
+    m_backgroundAnimation = new QPropertyAnimation(this, "backgroundColor");
+    m_backgroundAnimation->setEasingCurve(QEasingCurve::InOutCubic);
+    connect(m_backgroundAnimation, &QAbstractAnimation::finished, [this]
+    {
+       this->m_isBackgroundAnimating = false;
+    });
+
+    m_textAnimation = new QPropertyAnimation(this, "textColor");
+    m_textAnimation->setEasingCurve(QEasingCurve::InOutCubic);
+    connect(m_textAnimation, &QAbstractAnimation::finished, [this]
+    {
+       this->m_isTextAnimating = false;
+    });
 }
 
 void Button::SetBackgroundColor(const QColor& acColor) 
@@ -55,46 +69,30 @@ void Button::AnimateColors(const QColor& acBgTarget, const QColor& acTextTarget,
     AnimateText(acTextTarget, acDuration);
 }
 
-void Button::AnimateBackground(const QColor& acTarget, int acDuration)
+void Button::AnimateBackground(const QColor& acTarget, const int acDuration)
 {
-    if (m_isBackgroundAnimating)
-        return;
-
     m_isBackgroundAnimating = true;
-    auto* bgAnim = new QPropertyAnimation(this, "backgroundColor");
-    bgAnim->setDuration(acDuration);
-    bgAnim->setStartValue(m_backgroundColor);
-    bgAnim->setEndValue(acTarget);
-    bgAnim->setEasingCurve(QEasingCurve::InOutCubic);
 
-    connect(bgAnim, &QPropertyAnimation::finished, this, [this]() {
-        QTimer::singleShot(1000, this, [this]() {
-            m_isBackgroundAnimating = false;
-        });
-    });
+    if (m_backgroundAnimation->state() == QAbstractAnimation::Running)
+        m_backgroundAnimation->stop();
 
-    bgAnim->start(QAbstractAnimation::DeleteWhenStopped);
+    m_backgroundAnimation->setDuration(acDuration);
+    m_backgroundAnimation->setEndValue(acTarget);
+
+    m_backgroundAnimation->start(QAbstractAnimation::KeepWhenStopped);
 }
 
 void Button::AnimateText(const QColor& acTarget, const int acDuration)
 {
-    if (m_isTextAnimating)
-        return;
-
     m_isTextAnimating = true;
-    auto* textAnim = new QPropertyAnimation(this, "textColor");
-    textAnim->setDuration(acDuration);
-    textAnim->setStartValue(m_textColor);
-    textAnim->setEndValue(acTarget);
-    textAnim->setEasingCurve(QEasingCurve::InOutCubic);
 
-    connect(textAnim, &QPropertyAnimation::finished, this, [this]() {
-        QTimer::singleShot(1000, this, [this]() {
-            m_isTextAnimating = false;
-        });
-    });
+    if (m_textAnimation->state() == QAbstractAnimation::Running)
+        m_textAnimation->stop();
 
-    textAnim->start(QAbstractAnimation::DeleteWhenStopped);
+    m_textAnimation->setDuration(acDuration);
+    m_textAnimation->setEndValue(acTarget);
+
+    m_textAnimation->start(QAbstractAnimation::KeepWhenStopped);
 }
 
 void Button::AnimateToOriginal(const int acDuration)

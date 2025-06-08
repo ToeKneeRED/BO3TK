@@ -1,14 +1,16 @@
 ﻿#include "Dashboard.h"
 #include "Log.h"
-#include "framework.h"
 #include <QApplication>
 #include <QScreen>
-#include "Button.h"
 
 QApplication* Dashboard::App = nullptr;
 QWidget* Dashboard::Window = nullptr;
 QVBoxLayout* Dashboard::Layout = nullptr;
-std::unordered_map<std::string, Button*> Dashboard::Buttons{};
+QIcon* Dashboard::Icon = nullptr;
+std::string Dashboard::GamePath = GAME_PATH;
+std::string Dashboard::DllPath = DLL_PATH;
+std::unordered_map<const char*, Button*> Dashboard::Buttons{};
+std::unordered_map<const char*, InputField*> Dashboard::InputFields{};
 
 void Dashboard::Init(int32_t aArgc, char** aArgv)
 {
@@ -17,6 +19,7 @@ void Dashboard::Init(int32_t aArgc, char** aArgv)
     Window = new QWidget;
     Window->setWindowTitle("Dashboard");
     Window->resize(900, 600);
+    Window->setFocusPolicy(Qt::ClickFocus);
 
     if (const QScreen* primaryScreen = QGuiApplication::primaryScreen())
     {
@@ -28,8 +31,6 @@ void Dashboard::Init(int32_t aArgc, char** aArgv)
     }
 
     Layout = new QVBoxLayout(Window);
-    AddButton("BO3Enhanced", new Button("BO3Enhanced", Window));
-    Layout->addStretch();
 
     Window->setLayout(Layout);
     Window->show();
@@ -40,10 +41,44 @@ int Dashboard::Run()
     return QApplication::exec();
 }
 
-void Dashboard::AddButton(const std::string& acName, Button* apButton)
+void Dashboard::AddButton(const char* acName, Button* apButton)
 {
     Buttons.insert({acName, apButton});
 
     Layout->addWidget(apButton);
+
+    /*auto* rowLayout = new QHBoxLayout;
+
+    auto* input = new InputField(acDefaultText.c_str());
+    input->setMinimumWidth(600);
+    input->setStyleSheet("QLineEdit { padding: 5px; border-radius: 5px; border: 1px solid #ccc; }");
+
+    rowLayout->addWidget(apButton);
+    rowLayout->addWidget(input);
+
+    Layout->addLayout(rowLayout);
+    });*/
 }
 
+Button* Dashboard::CreateButton(const char* acName, const char* acText)
+{
+    Button* button = new Button(acText, Window);
+    AddButton(acName, button);
+
+    return button;
+}
+
+void Dashboard::AddInputField(const char* acName, InputField* apInputField)
+{
+    InputFields.insert({acName, apInputField});
+
+    Layout->addWidget(apInputField);
+}
+
+InputField* Dashboard::CreateInputField(const char* acName, const char* acText)
+{
+    InputField* inputField = new InputField(acText, Window);
+    AddInputField(acName, inputField);
+
+    return inputField;
+}

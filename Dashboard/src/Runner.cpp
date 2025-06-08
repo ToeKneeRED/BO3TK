@@ -24,73 +24,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ const LPWSTR lpCm
     Dashboard::Init(argc, argv.data());
     LocalFree(argvW);
 
-    auto* bo3Button = Dashboard::Buttons["BO3Enhanced"];
-
-    if (!bo3Button)
-    {
-        Log::Get()->Error("Failed to find BO3E button");
-        return WM_QUIT;
-    }
-    
-    bo3Button->OnPress += [&]
-    {
-        STARTUPINFO sInfo{};
-        PROCESS_INFORMATION pInfo{};
-
-        if(const auto cPath = GAME_PATH; // TODO: deal with the disgusting \\\\ in paths with spaces, should still work otherwise (-4 hours)
-            CreateProcessA(cPath, nullptr, nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, nullptr, &sInfo, &pInfo))
-        {
-            if(Inject(pInfo.dwProcessId, DLL_PATH))
-            {
-                bo3Button->AnimateColors(QColor("#1e5e3d"), QColor("#e0f4e9"));
-
-                std::thread([hProcess = pInfo.hProcess, hThread = pInfo.hThread, bo3Button]() {
-                    DWORD exitCode = STILL_ACTIVE;
-
-                    while (exitCode == STILL_ACTIVE)
-                    {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-                        if (!GetExitCodeProcess(hProcess, &exitCode))
-                            break;
-                    }
-
-                    QMetaObject::invokeMethod(bo3Button, [=]() {
-                        bo3Button->AnimateToOriginal();
-                    }, Qt::QueuedConnection);
-
-                    CloseHandle(hProcess);
-                    CloseHandle(hThread);
-                }).detach();
-            }
-            else
-            {
-                bo3Button->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
-
-                QTimer::singleShot(3000, bo3Button, [=]() {
-                    bo3Button->AnimateToOriginal();
-                });
-            }
-        }
-        else
-        {
-            char buf[256];
-            FormatMessageA(
-                FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf,
-                (sizeof(buf) / sizeof(char)), nullptr);
-            Log::Get()->Error("{}{}", buf, cPath);
-
-            bo3Button->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
-
-            QTimer::singleShot(3000, bo3Button, [=]() {
-                bo3Button->AnimateToOriginal();
-            });
-        }
-    };
+    Runner::CreateDashboardComponents();
 
     return Dashboard::Run();
 }
 
-BOOL Inject(const DWORD acProcessId, LPCSTR apDllPath)
+BOOL Runner::Inject(const DWORD acProcessId, LPCSTR apDllPath)
 {
     if (acProcessId == 0 || !std::filesystem::exists(apDllPath))
     {
@@ -161,4 +100,120 @@ BOOL Inject(const DWORD acProcessId, LPCSTR apDllPath)
     CloseHandle(cProcess);
 
     return result;
+}
+
+void Runner::OnLaunchButtonPress(Button* apButton)
+{
+    STARTUPINFO sInfo{};
+    PROCESS_INFORMATION pInfo{};
+
+    if(const auto cPath = Dashboard::GamePath.c_str(); // TODO: deal with the disgusting \\\\ in paths with spaces, should still work otherwise (-4 hours)
+        CreateProcessA(cPath, nullptr, nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, nullptr, &sInfo, &pInfo))
+    {
+        if(Runner::Inject(pInfo.dwProcessId, DLL_PATH))
+        {
+            apButton->AnimateColors(QColor("#1e5e3d"), QColor("#e0f4e9"));
+
+            std::thread([hProcess = pInfo.hProcess, hThread = pInfo.hThread, apButton] {
+                DWORD exitCode = STILL_ACTIVE;
+
+                while (exitCode == STILL_ACTIVE)
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+                    if (!GetExitCodeProcess(hProcess, &exitCode))
+                    {
+                        break;
+                    }
+                }
+
+                QMetaObject::invokeMethod(apButton, [=] {
+                    if (!apButton->IsAnimating())
+                    {
+                        apButton->AnimateToOriginal();
+                    }
+                }, Qt::QueuedConnection);
+
+                CloseHandle(hProcess);
+                CloseHandle(hThread);
+            }).detach();
+        }
+        else
+        {
+            apButton->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
+
+            QTimer::singleShot(3000, apButton, [=] {
+                if (!apButton->IsAnimating())
+                {
+                    apButton->AnimateToOriginal();
+                }
+            });
+        }
+    }
+    else
+    {
+        char buf[256];
+        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), 
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(char)), nullptr);
+        Log::Get()->Error("{}{}", buf, cPath);
+
+        apButton->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
+
+        QTimer::singleShot(3000, apButton, [=] {
+            if (!apButton->IsAnimating())
+            {
+                apButton->AnimateToOriginal();
+            }
+        });
+    }
+}
+
+void Runner::CreateDashboardComponents()
+{
+    const QIcon cIcon(":/BO3TK.ico");
+    Dashboard::Window->setWindowIcon(cIcon);
+
+    Button* launchButton = Dashboard::CreateButton("LaunchButton", "BO3Enhanced");
+    launchButton->OnPress += [=] {
+        Runner::OnLaunchButtonPress(launchButton);
+    };
+
+    QHBoxLayout* rowLayout = new QHBoxLayout(Dashboard::Window);
+    QVBoxLayout* leftColumnLayout = new QVBoxLayout(Dashboard::Window);
+    QVBoxLayout* rightColumnLayout = new QVBoxLayout(Dashboard::Window);
+
+    QLabel* gamePathText = new QLabel;
+    gamePathText->setText("Game Path");
+    gamePathText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
+    gamePathText->setAlignment(Qt::AlignmentFlag::AlignHCenter);
+    InputField* gamePathInputField = Dashboard::CreateInputField("GamePath", Dashboard::GamePath.c_str());
+    gamePathInputField->OnSubmit += [=] {
+        Dashboard::GamePath = gamePathInputField->text().toUtf8().constData();
+        Dashboard::GamePath.erase(std::ranges::remove(Dashboard::GamePath, '\"').begin(), Dashboard::GamePath.end());
+
+        gamePathInputField->setText(Dashboard::GamePath.c_str());
+        gamePathInputField->update();
+    };
+    leftColumnLayout->addWidget(gamePathText);
+    leftColumnLayout->addWidget(gamePathInputField);
+
+    QLabel* dllPathText = new QLabel;
+    dllPathText->setText("DLL Path");
+    dllPathText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
+    dllPathText->setAlignment(Qt::AlignmentFlag::AlignHCenter);
+    InputField* dllPathInputField = Dashboard::CreateInputField("DllPath", Dashboard::DllPath.c_str());
+    dllPathInputField->OnSubmit += [=] {
+        Dashboard::DllPath = dllPathInputField->text().toUtf8().constData();
+        Dashboard::DllPath.erase(std::ranges::remove(Dashboard::DllPath, '\"').begin(), Dashboard::DllPath.end());
+
+        dllPathInputField->setText(Dashboard::DllPath.c_str());
+        dllPathInputField->update();
+    };
+    rightColumnLayout->addWidget(dllPathText);
+    rightColumnLayout->addWidget(dllPathInputField);
+
+    rowLayout->addLayout(leftColumnLayout);
+    rowLayout->addLayout(rightColumnLayout);
+
+    Dashboard::Layout->addLayout(rowLayout);
+    Dashboard::Layout->addStretch();
 }

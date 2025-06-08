@@ -231,25 +231,16 @@ private:
             cursorInfo.dwSize = 1;
             cursorInfo.bVisible = FALSE;
             SetConsoleCursorInfo(stdHandle, &cursorInfo);
-
-            stdHandle = GetStdHandle(STD_INPUT_HANDLE);
-
-            if (stdHandle == INVALID_HANDLE_VALUE)
-            {
-                std::cerr << "Error: unable to get handle to stdout.\n";
-                return;
-            }
-
             SetConsoleMode(stdHandle, ENABLE_EXTENDED_FLAGS);
             
             auto sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
             sink->set_level(spdlog::level::debug);
             sink->set_pattern("[%H:%M:%S.%e] %v");
 
-            const auto logger = std::make_shared<spdlog::logger>("", spdlog::sinks_init_list{sink});
-            logger->set_level(spdlog::level::debug);
+            const auto cLogger = std::make_shared<spdlog::logger>("", spdlog::sinks_init_list{sink});
+            cLogger->set_level(spdlog::level::debug);
 
-            spdlog::set_default_logger(logger);
+            set_default_logger(cLogger);
         }
     }
 };

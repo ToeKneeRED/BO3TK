@@ -136,7 +136,7 @@ inline HRESULT __stdcall HookPresent(IDXGISwapChain* pSwapChain, UINT SyncInterv
         }
     }
 
-    ImGuiService::Get()->OnDraw();
+    g_imguiService->OnDraw();
 
     g_pContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
     return OriginalPresent(pSwapChain, SyncInterval, Flags);

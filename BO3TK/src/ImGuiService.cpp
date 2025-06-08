@@ -75,7 +75,7 @@ void ImGuiService::OnDraw() noexcept
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::Begin("TK BO3");
+    ImGui::Begin("BO3TK");
 
     const ImVec4& cColor = *BO3E::IsInGame ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f) : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
     ImGui::Text("IsInGame: ");
