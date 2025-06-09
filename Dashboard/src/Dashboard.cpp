@@ -3,24 +3,16 @@
 #include <QApplication>
 #include <QScreen>
 
-QApplication* Dashboard::App = nullptr;
-QWidget* Dashboard::Window = nullptr;
-QVBoxLayout* Dashboard::Layout = nullptr;
-QIcon* Dashboard::Icon = nullptr;
-std::string Dashboard::GamePath = GAME_PATH;
-std::string Dashboard::DllPath = DLL_PATH;
-std::unordered_map<const char*, Button*> Dashboard::Buttons{};
-std::unordered_map<const char*, InputField*> Dashboard::InputFields{};
-
 void Dashboard::Init(int32_t aArgc, char** aArgv)
 {
     App = new QApplication(aArgc, aArgv);
+
+    Settings = new QSettings("Dashboard.ini", QSettings::IniFormat);
 
     Window = new QWidget;
     Window->setWindowTitle("Dashboard");
     Window->resize(900, 600);
     Window->setFocusPolicy(Qt::ClickFocus);
-
     if (const QScreen* primaryScreen = QGuiApplication::primaryScreen())
     {
         const QRect cScreenGeometry = primaryScreen->availableGeometry();

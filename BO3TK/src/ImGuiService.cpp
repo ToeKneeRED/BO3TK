@@ -30,8 +30,6 @@ ImGuiService* ImGuiService::Get()
 
 LRESULT CALLBACK ImGuiService::WndProcHook(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    Log::Get()->Print("run wndprochook");
-
     if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
         return true;
 

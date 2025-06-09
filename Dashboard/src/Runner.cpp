@@ -169,8 +169,10 @@ void Runner::OnLaunchButtonPress(Button* apButton)
 
 void Runner::CreateDashboardComponents()
 {
-    const QIcon cIcon(":/BO3TK.ico");
-    Dashboard::Window->setWindowIcon(cIcon);
+    Dashboard::SetIcon(QIcon(":/BO3TK.ico"));
+
+    Dashboard::GamePath = Dashboard::Settings->value("GamePath", GAME_PATH).toString().toUtf8().constData();
+    Dashboard::DllPath = Dashboard::Settings->value("DllPath", DLL_PATH).toString().toUtf8().constData();
 
     Button* launchButton = Dashboard::CreateButton("LaunchButton", "BO3Enhanced");
     launchButton->OnPress += [=] {
@@ -192,6 +194,8 @@ void Runner::CreateDashboardComponents()
 
         gamePathInputField->setText(Dashboard::GamePath.c_str());
         gamePathInputField->update();
+
+        Dashboard::Settings->setValue("GamePath", Dashboard::GamePath.c_str());
     };
     leftColumnLayout->addWidget(gamePathText);
     leftColumnLayout->addWidget(gamePathInputField);
@@ -207,6 +211,8 @@ void Runner::CreateDashboardComponents()
 
         dllPathInputField->setText(Dashboard::DllPath.c_str());
         dllPathInputField->update();
+
+        Dashboard::Settings->setValue("DllPath", Dashboard::DllPath.c_str());
     };
     rightColumnLayout->addWidget(dllPathText);
     rightColumnLayout->addWidget(dllPathInputField);
