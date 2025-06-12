@@ -39,15 +39,14 @@ BOOL Runner::Inject(const DWORD acProcessId, LPCSTR apDllPath)
         return FALSE;
     }
 
-    const HANDLE cProcess = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | 
-                                 PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
-                                 FALSE, acProcessId);
+    const HANDLE cProcess =
+        OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, acProcessId);
     if (!cProcess)
     {
         char buf[256];
-            FormatMessageA(
-                FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf,
-                (sizeof(buf) / sizeof(char)), nullptr);
+        FormatMessageA(
+            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf,
+            (sizeof(buf) / sizeof(char)), nullptr);
         Log::Get()->Error("Failed to open process: {}", buf);
         return FALSE;
     }
@@ -80,9 +79,7 @@ BOOL Runner::Inject(const DWORD acProcessId, LPCSTR apDllPath)
     BOOL result = FALSE;
     if (WriteProcessMemory(cProcess, cRemoteString, apDllPath, cDllPathLen, nullptr))
     {
-        const HANDLE cRemoteThread = CreateRemoteThread(cProcess, nullptr, 0, 
-                                static_cast<LPTHREAD_START_ROUTINE>(cLoadLibraryAddr), cRemoteString, 0, nullptr);
-        if (cRemoteThread)
+        if (const HANDLE cRemoteThread = CreateRemoteThread(cProcess, nullptr, 0, static_cast<LPTHREAD_START_ROUTINE>(cLoadLibraryAddr), cRemoteString, 0, nullptr))
         {
             WaitForSingleObject(cRemoteThread, INFINITE);
             CloseHandle(cRemoteThread);
@@ -109,63 +106,77 @@ void Runner::OnLaunchButtonPress(Button* apButton)
     STARTUPINFO sInfo{};
     PROCESS_INFORMATION pInfo{};
 
-    if(const auto cPath = Dashboard::GamePath.c_str(); // TODO: deal with the disgusting \\\\ in paths with spaces, should still work otherwise (-4 hours)
+    if (const auto cPath = Dashboard::GamePath.c_str(); // TODO: deal with the disgusting \\\\ in paths with spaces, should still work otherwise (-4 hours)
         CreateProcessA(cPath, nullptr, nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, nullptr, &sInfo, &pInfo))
     {
-        if(Runner::Inject(pInfo.dwProcessId, DLL_PATH))
+        if (Runner::Inject(pInfo.dwProcessId, DLL_PATH))
         {
             apButton->AnimateColors(QColor("#1e5e3d"), QColor("#e0f4e9"));
 
-            std::thread([hProcess = pInfo.hProcess, hThread = pInfo.hThread, apButton] {
-                DWORD exitCode = STILL_ACTIVE;
-
-                while (exitCode == STILL_ACTIVE)
+            std::thread(
+                [hProcess = pInfo.hProcess, hThread = pInfo.hThread, apButton]
                 {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-                    if (!GetExitCodeProcess(hProcess, &exitCode))
-                    {
-                        break;
-                    }
-                }
+                    DWORD exitCode = STILL_ACTIVE;
 
-                QMetaObject::invokeMethod(apButton, [=] {
-                    if (!apButton->IsAnimating())
+                    while (exitCode == STILL_ACTIVE)
                     {
-                        apButton->AnimateToOriginal();
+                        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+                        if (!GetExitCodeProcess(hProcess, &exitCode))
+                        {
+                            break;
+                        }
                     }
-                }, Qt::QueuedConnection);
 
-                CloseHandle(hProcess);
-                CloseHandle(hThread);
-            }).detach();
+                    QMetaObject::invokeMethod(
+                        apButton,
+                        [=]
+                        {
+                            if (!apButton->IsAnimating())
+                            {
+                                apButton->AnimateToOriginal();
+                            }
+                        },
+                        Qt::QueuedConnection);
+
+                    CloseHandle(hProcess);
+                    CloseHandle(hThread);
+                })
+                .detach();
         }
         else
         {
             apButton->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
 
-            QTimer::singleShot(3000, apButton, [=] {
-                if (!apButton->IsAnimating())
+            QTimer::singleShot(
+                3000, apButton,
+                [=]
                 {
-                    apButton->AnimateToOriginal();
-                }
-            });
+                    if (!apButton->IsAnimating())
+                    {
+                        apButton->AnimateToOriginal();
+                    }
+                });
         }
     }
     else
     {
         char buf[256];
-        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), 
-            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(char)), nullptr);
+        FormatMessageA(
+            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf,
+            (sizeof(buf) / sizeof(char)), nullptr);
         Log::Get()->Error("{}{}", buf, cPath);
 
         apButton->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
 
-        QTimer::singleShot(3000, apButton, [=] {
-            if (!apButton->IsAnimating())
+        QTimer::singleShot(
+            3000, apButton,
+            [=]
             {
-                apButton->AnimateToOriginal();
-            }
-        });
+                if (!apButton->IsAnimating())
+                {
+                    apButton->AnimateToOriginal();
+                }
+            });
     }
 }
 
@@ -177,7 +188,8 @@ void Runner::CreateDashboardComponents()
     Dashboard::DllPath = Dashboard::Settings->value("DllPath", DLL_PATH).toString().toUtf8().constData();
 
     Button* launchButton = Dashboard::CreateComponent<Button>("BO3Enhanced", Dashboard::Window);
-    launchButton->OnPress += [=] {
+    launchButton->OnPress += [=]
+    {
         Runner::OnLaunchButtonPress(launchButton);
     };
     Dashboard::Layout->addWidget(launchButton);
@@ -191,7 +203,8 @@ void Runner::CreateDashboardComponents()
     gamePathText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
     gamePathText->setAlignment(Qt::AlignmentFlag::AlignHCenter);
     InputField* gamePathInputField = Dashboard::CreateComponent<InputField>(Dashboard::GamePath.c_str(), Dashboard::Window);
-    gamePathInputField->OnSubmit += [=] {
+    gamePathInputField->OnSubmit += [=]
+    {
         Dashboard::GamePath = gamePathInputField->text().toUtf8().constData();
         Dashboard::GamePath.erase(std::ranges::remove(Dashboard::GamePath, '\"').begin(), Dashboard::GamePath.end());
 
@@ -208,7 +221,8 @@ void Runner::CreateDashboardComponents()
     dllPathText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
     dllPathText->setAlignment(Qt::AlignmentFlag::AlignHCenter);
     InputField* dllPathInputField = Dashboard::CreateComponent<InputField>(Dashboard::DllPath.c_str(), Dashboard::Window);
-    dllPathInputField->OnSubmit += [=] {
+    dllPathInputField->OnSubmit += [=]
+    {
         Dashboard::DllPath = dllPathInputField->text().toUtf8().constData();
         Dashboard::DllPath.erase(std::ranges::remove(Dashboard::DllPath, '\"').begin(), Dashboard::DllPath.end());
 

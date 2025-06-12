@@ -16,9 +16,11 @@
 #define LOG_WOUTPUT(prefix, color, reset, msg, ...) \
     std::wcout << std::format(prefix, color, reset) << std::vformat(msg, std::make_format_args(__VA_ARGS__)) << std::endl
 #else
-#define LOG_OUTPUT(prefix, color, reset, msg, ...) spdlog::info("[{}{}{}] {}{}", color, prefix, reset, std::vformat(msg, std::make_format_args(__VA_ARGS__)), NarrowText::Reset)
+#define LOG_OUTPUT(prefix, color, reset, msg, ...) \
+    spdlog::info("[{}{}{}] {}{}", color, prefix, reset, std::vformat(msg, std::make_format_args(__VA_ARGS__)), NarrowText::Reset)
 
-#define LOG_WOUTPUT(prefix, color, reset, msg, ...) spdlog::info(L"[{}{}{}] {}{}", color, prefix, reset, std::vformat(msg, std::make_wformat_args(__VA_ARGS__)), WideText::Reset)
+#define LOG_WOUTPUT(prefix, color, reset, msg, ...) \
+    spdlog::info(L"[{}{}{}] {}{}", color, prefix, reset, std::vformat(msg, std::make_wformat_args(__VA_ARGS__)), WideText::Reset)
 #endif
 
 struct Log
@@ -52,8 +54,7 @@ struct Log
             static inline const wchar_t* Debug = WideText::Foreground::Cyan;
         };
 
-        template<typename T>
-        void Set(const Type& acType, const T* acColor)
+        template <typename T> void Set(const Type& acType, const T* acColor)
         {
             static_assert(!std::is_same_v<T, char> && !std::is_same_v<T, wchar_t>, STATIC_ASSERT_MSG("Unsupported type"));
 
@@ -81,13 +82,13 @@ struct Log
             }
         }
     };
-    
+
     static Log* Get()
     {
         static Log* s_instance = new Log();
         return s_instance;
     }
-    
+
     template <typename T, typename... Args> void Print(const T* acMsg, Args&&... aArgs) noexcept
     {
         if constexpr (std::is_same_v<T, char> || std::is_same_v<T, void>)
@@ -232,7 +233,7 @@ private:
             cursorInfo.bVisible = FALSE;
             SetConsoleCursorInfo(stdHandle, &cursorInfo);
             SetConsoleMode(stdHandle, ENABLE_EXTENDED_FLAGS);
-            
+
             auto sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
             sink->set_level(spdlog::level::debug);
             sink->set_pattern("[%H:%M:%S.%e] %v");

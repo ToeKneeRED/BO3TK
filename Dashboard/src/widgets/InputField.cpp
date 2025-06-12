@@ -23,11 +23,7 @@ InputField::InputField(const QString& text, QWidget* parent)
 
     setText(text);
 
-    connect(this, &InputField::focusLost, [this] {
-         this->OnSubmit();
-    });
+    connect(this, &InputField::focusLost, [this] { this->OnSubmit(); });
 
-    connect(this, &QLineEdit::returnPressed, [this] {
-        this->OnSubmit();
-    });
+    connect(this, &QLineEdit::returnPressed, [this] { this->OnSubmit(); });
 }

@@ -5,9 +5,9 @@
 
 struct InputField final : Component<QLineEdit>
 {
-     Q_OBJECT
+    Q_OBJECT
 public:
-     explicit InputField(const QString& text, QWidget* parent = nullptr);
+    explicit InputField(const QString& text, QWidget* parent = nullptr);
 
     Handler<> OnSubmit;
 

@@ -9,18 +9,23 @@
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-inline HWND GetMainWindowHandle() {
+inline HWND GetMainWindowHandle()
+{
     HWND hwnd = nullptr;
 
-    EnumWindows([](const HWND acWnd, const LPARAM acParam) -> BOOL {
-        DWORD wndPid = 0;
-        GetWindowThreadProcessId(acWnd, &wndPid);
-        if (wndPid == GetCurrentProcessId() && GetWindow(acWnd, GW_OWNER) == nullptr && IsWindowVisible(acWnd)) {
-            *reinterpret_cast<HWND*>(acParam) = acWnd;
-            return FALSE;
-        }
-        return TRUE;
-    }, reinterpret_cast<LPARAM>(&hwnd));
+    EnumWindows(
+        [](const HWND acWnd, const LPARAM acParam) -> BOOL
+        {
+            DWORD wndPid = 0;
+            GetWindowThreadProcessId(acWnd, &wndPid);
+            if (wndPid == GetCurrentProcessId() && GetWindow(acWnd, GW_OWNER) == nullptr && IsWindowVisible(acWnd))
+            {
+                *reinterpret_cast<HWND*>(acParam) = acWnd;
+                return FALSE;
+            }
+            return TRUE;
+        },
+        reinterpret_cast<LPARAM>(&hwnd));
 
     return hwnd;
 }
@@ -115,6 +120,7 @@ struct ImGuiService
     static ImGuiService* Get();
 
     static WNDPROC OriginalWndProc;
+
 private:
     static ImGuiService* s_instance;
     HWND m_window{};

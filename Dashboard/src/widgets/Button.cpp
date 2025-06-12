@@ -33,22 +33,16 @@ Button::Button(const QString& text, QWidget* parent)
 
     m_backgroundAnimation = new QPropertyAnimation(this, "backgroundColor");
     m_backgroundAnimation->setEasingCurve(QEasingCurve::InOutCubic);
-    connect(m_backgroundAnimation, &QAbstractAnimation::finished, [this]
-    {
-       this->m_isBackgroundAnimating = false;
-    });
+    connect(m_backgroundAnimation, &QAbstractAnimation::finished, [this] { this->m_isBackgroundAnimating = false; });
 
     m_textAnimation = new QPropertyAnimation(this, "textColor");
     m_textAnimation->setEasingCurve(QEasingCurve::InOutCubic);
-    connect(m_textAnimation, &QAbstractAnimation::finished, [this]
-    {
-       this->m_isTextAnimating = false;
-    });
+    connect(m_textAnimation, &QAbstractAnimation::finished, [this] { this->m_isTextAnimating = false; });
 }
 
-void Button::SetBackgroundColor(const QColor& acColor) 
+void Button::SetBackgroundColor(const QColor& acColor)
 {
-    if (acColor != m_backgroundColor) 
+    if (acColor != m_backgroundColor)
     {
         m_backgroundColor = acColor;
         update();
@@ -57,7 +51,7 @@ void Button::SetBackgroundColor(const QColor& acColor)
 
 void Button::SetTextColor(const QColor& acColor)
 {
-    if (acColor != m_textColor) 
+    if (acColor != m_textColor)
     {
         m_textColor = acColor;
         update();

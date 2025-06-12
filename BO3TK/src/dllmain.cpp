@@ -123,7 +123,8 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
 
                     std::this_thread::sleep_for(std::chrono::milliseconds(250));
                 }
-            }).detach();
+            })
+            .detach();
     }
     break;
     case DLL_THREAD_ATTACH:
@@ -139,5 +140,4 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
     }
 
     return TRUE;
-
 }

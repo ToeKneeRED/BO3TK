@@ -12,7 +12,7 @@ inline LPVOID EntryPoint{};
 inline DWORD Size{};
 inline uintptr_t End{};
 inline HWND WindowHandle{};
-}
+} // namespace Exe
 
 inline MH_STATUS g_status{};
 inline HWND g_window = nullptr;
@@ -22,27 +22,27 @@ inline ID3D11RenderTargetView* g_mainRenderTargetView;
 
 inline ImGuiService* g_imguiService = nullptr;
 
-#define CREATE_HOOK(target, detour, original)\
-    g_status = MH_CreateHook((void*)(target), (LPVOID) &detour, (LPVOID*)&original);\
-    if (g_status != MH_OK)\
-    {\
-        Log::Get()->Error("{}Failed to create hook for {} {}", NarrowText::Foreground::Red, #target, MH_StatusToString(g_status));\
-    }\
-    else\
-    {\
-        Log::Get()->Print(L"{}Hook created: {}", WideText::Foreground::Green, L#target);\
-    }\
+#define CREATE_HOOK(target, detour, original)                                                                                      \
+    g_status = MH_CreateHook((void*)(target), (LPVOID) & detour, (LPVOID*)&original);                                              \
+    if (g_status != MH_OK)                                                                                                         \
+    {                                                                                                                              \
+        Log::Get()->Error("{}Failed to create hook for {} {}", NarrowText::Foreground::Red, #target, MH_StatusToString(g_status)); \
+    }                                                                                                                              \
+    else                                                                                                                           \
+    {                                                                                                                              \
+        Log::Get()->Print(L"{}Hook created: {}", WideText::Foreground::Green, L#target);                                           \
+    }
 
-#define ENABLE_HOOK(target)\
-    g_status = MH_EnableHook((LPVOID)(target));\
-    if (g_status != MH_OK)\
-        {\
-            Log::Get()->Error("{}Failed to enable hook for {} {}", NarrowText::Foreground::Red, #target, MH_StatusToString(g_status));\
-        }\
-        else\
-        {\
-            Log::Get()->Print(L"{}Hook enabled: {}", WideText::Foreground::Green, L#target);\
-        }\
+#define ENABLE_HOOK(target)                                                                                                        \
+    g_status = MH_EnableHook((LPVOID)(target));                                                                                    \
+    if (g_status != MH_OK)                                                                                                         \
+    {                                                                                                                              \
+        Log::Get()->Error("{}Failed to enable hook for {} {}", NarrowText::Foreground::Red, #target, MH_StatusToString(g_status)); \
+    }                                                                                                                              \
+    else                                                                                                                           \
+    {                                                                                                                              \
+        Log::Get()->Print(L"{}Hook enabled: {}", WideText::Foreground::Green, L#target);                                           \
+    }
 
 #define ADDRESS(offset) (uintptr_t)((uintptr_t)Exe::BaseModule + (offset))
 
@@ -64,7 +64,7 @@ static Player LocalPlayer = {
     .Name = reinterpret_cast<const char*>(ADDRESS(0x3B07498)),
     .Points = reinterpret_cast<uint32_t*>(ADDRESS(0x3B074CC)),
     .Kills = reinterpret_cast<uint16_t*>(ADDRESS(0x3B074D0)),
-    .Ping = reinterpret_cast<uint16_t*>(ADDRESS(0x3B074C0)) };
+    .Ping = reinterpret_cast<uint16_t*>(ADDRESS(0x3B074C0))};
 static Player Player1;
 static Player Player2;
 static Player Player3;
@@ -83,27 +83,27 @@ inline uint64_t* MethodsTable = nullptr;
 
 static bool BindVTable(const uint16_t _index, void** _original, void* _function)
 {
-     Log* log = Log::Get();
-     
-     assert(_original != NULL && _function != NULL);
+    Log* log = Log::Get();
 
-     void* target = reinterpret_cast<void*>(MethodsTable[_index]);
+    assert(_original != NULL && _function != NULL);
 
-     MH_STATUS status = MH_CreateHook(target, _function, _original);
-     if (status != MH_OK)
-     {
-         log->Error("Failed to create hook: {} : {}", _function, MH_StatusToString(status));
-         return false;
-     }
+    void* target = reinterpret_cast<void*>(MethodsTable[_index]);
 
-     status = MH_EnableHook(target);
-     if (status != MH_OK)
-     {
-         log->Error("Failed to enable hook: {} : {}", _function, MH_StatusToString(status));
-         return false;
-     }
+    MH_STATUS status = MH_CreateHook(target, _function, _original);
+    if (status != MH_OK)
+    {
+        log->Error("Failed to create hook: {} : {}", _function, MH_StatusToString(status));
+        return false;
+    }
 
-     return true;
+    status = MH_EnableHook(target);
+    if (status != MH_OK)
+    {
+        log->Error("Failed to enable hook: {} : {}", _function, MH_StatusToString(status));
+        return false;
+    }
+
+    return true;
 }
 
 typedef HRESULT(__stdcall* Present_t)(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags);

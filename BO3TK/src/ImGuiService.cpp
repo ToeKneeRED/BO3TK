@@ -7,7 +7,6 @@
 WNDPROC ImGuiService::OriginalWndProc = nullptr;
 ImGuiService* ImGuiService::s_instance = nullptr;
 
-
 ImGuiService* ImGuiService::Init(const HWND& acWindow, ID3D11Device* apDevice, ID3D11DeviceContext* apContext)
 {
     if (!s_instance)
@@ -39,13 +38,12 @@ LRESULT CALLBACK ImGuiService::WndProcHook(HWND hWnd, UINT uMsg, WPARAM wParam, 
     {
         switch (uMsg)
         {
-            case WM_KEYDOWN:
-            case WM_KEYUP:
-            case WM_CHAR:
-            case WM_SYSKEYDOWN:
-            case WM_SYSKEYUP:
-                return 0;
-            default: break;
+        case WM_KEYDOWN:
+        case WM_KEYUP:
+        case WM_CHAR:
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP: return 0;
+        default: break;
         }
     }
 
@@ -53,16 +51,15 @@ LRESULT CALLBACK ImGuiService::WndProcHook(HWND hWnd, UINT uMsg, WPARAM wParam, 
     {
         switch (uMsg)
         {
-            case WM_LBUTTONDOWN:
-            case WM_LBUTTONUP:
-            case WM_MOUSEMOVE:
-            case WM_MOUSEWHEEL:
-            case WM_RBUTTONDOWN:
-            case WM_RBUTTONUP:
-            case WM_MBUTTONDOWN:
-            case WM_MBUTTONUP:
-                return 0;
-            default: break;
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_MOUSEMOVE:
+        case WM_MOUSEWHEEL:
+        case WM_RBUTTONDOWN:
+        case WM_RBUTTONUP:
+        case WM_MBUTTONDOWN:
+        case WM_MBUTTONUP: return 0;
+        default: break;
         }
     }
 
@@ -107,7 +104,7 @@ void ImGuiService::OnDraw() noexcept
 
     ImGui::PushItemWidth(100);
     ImGui::InputText("RVA", m_inputString, 256, ImGuiInputTextFlags_CharsNoBlank);
-    
+
     const int cBase = (m_inputString[0] == '0' && (m_inputString[1] == 'x' || m_inputString[1] == 'X')) ? 16 : 10;
 
     m_inputAddress = min(std::strtoull(m_inputString, nullptr, cBase), (uintptr_t)Exe::End);
@@ -158,8 +155,7 @@ bool ImGuiService::Test()
     }
     else
     {
-        if (void* d3D11CreateDeviceAndSwapChain; (d3D11CreateDeviceAndSwapChain = 
-            GetProcAddress(cD3d11, "D3D11CreateDeviceAndSwapChain")) == nullptr)
+        if (void* d3D11CreateDeviceAndSwapChain; (d3D11CreateDeviceAndSwapChain = GetProcAddress(cD3d11, "D3D11CreateDeviceAndSwapChain")) == nullptr)
         {
             log->Error("Failed to find D3D11CreateDeviceAndSwapChain");
 

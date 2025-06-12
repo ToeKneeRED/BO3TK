@@ -12,8 +12,7 @@ struct Dashboard
 
     static void SetIcon(const QIcon& acIcon) { Window->setWindowIcon(acIcon); }
 
-    template <typename T, typename... Args>
-    static T* CreateComponent(Args&&... aArgs)
+    template <typename T, typename... Args> static T* CreateComponent(Args&&... aArgs)
     {
         T* component = new T(std::forward<Args>(aArgs)...);
         Components.push_back(component);

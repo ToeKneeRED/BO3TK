@@ -11,11 +11,10 @@ struct IComponent
     IComponent& operator=(IComponent&&) = default;
 };
 
-template<typename T, typename... Args>
-struct Component : T, IComponent
+template <typename T, typename... Args> struct Component : T, IComponent
 {
-    explicit Component(Args&&... aArgs) : T(std::forward<Args>(aArgs)...)
+    explicit Component(Args&&... aArgs)
+        : T(std::forward<Args>(aArgs)...)
     {
-        
     }
 };
