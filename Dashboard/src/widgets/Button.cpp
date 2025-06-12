@@ -5,7 +5,6 @@
 #include <QStyleOptionButton>
 
 Button::Button(const QString& text, QWidget* parent)
-    : QPushButton(text, parent)
 {
     setFont(QFont("JetBrains Mono NL Semibold", 14));
     setCursor(Qt::PointingHandCursor);
@@ -29,6 +28,8 @@ Button::Button(const QString& text, QWidget* parent)
             background-color: #1e1e1e;
         }
     )");
+
+    setText(text);
 
     m_backgroundAnimation = new QPropertyAnimation(this, "backgroundColor");
     m_backgroundAnimation->setEasingCurve(QEasingCurve::InOutCubic);

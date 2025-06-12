@@ -1,6 +1,5 @@
 ﻿#pragma once
-#include "InputField.h"
-#include <Button.h>
+#include <Component.h>
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QTimer>
@@ -12,10 +11,15 @@ struct Dashboard
     static int Run();
 
     static void SetIcon(const QIcon& acIcon) { Window->setWindowIcon(acIcon); }
-    static void AddButton(const char* acName, Button* apButton);
-    static Button* CreateButton(const char* acName, const char* acText = "");
-    static void AddInputField(const char* acName, InputField* apInputField);
-    static InputField* CreateInputField(const char* acName, const char* acText = "");
+
+    template <typename T, typename... Args>
+    static T* CreateComponent(Args&&... aArgs)
+    {
+        T* component = new T(std::forward<Args>(aArgs)...);
+        Components.push_back(component);
+
+        return component;
+    }
 
     static inline QApplication* App;
     static inline QWidget* Window;
@@ -26,6 +30,5 @@ struct Dashboard
     static inline std::string GamePath;
     static inline std::string DllPath;
 
-    static inline std::unordered_map<const char*, Button*> Buttons;
-    static inline std::unordered_map<const char*, InputField*> InputFields;
+    static inline std::vector<IComponent*> Components;
 };

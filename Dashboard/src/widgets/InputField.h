@@ -1,8 +1,9 @@
 #pragma once
-#include <QLineEdit>
 #include "Handler.h"
+#include "Component.h"
+#include <QLineEdit>
 
-struct InputField final : QLineEdit
+struct InputField final : Component<QLineEdit>
 {
      Q_OBJECT
 public:

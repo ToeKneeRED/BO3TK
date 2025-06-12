@@ -1,6 +1,6 @@
 #include "InputField.h"
 
-InputField::InputField(const QString& text, QWidget* parent) : QLineEdit(text, parent)
+InputField::InputField(const QString& text, QWidget* parent)
 {
     setMinimumWidth(600);
     setStyleSheet(R"(
@@ -20,6 +20,8 @@ InputField::InputField(const QString& text, QWidget* parent) : QLineEdit(text, p
             background-color: #aaaaaa;
         }
     )");
+
+    setText(text);
 
     connect(this, &InputField::focusLost, [this] {
          this->OnSubmit();

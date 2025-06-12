@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Handler.h"
+#include "Component.h"
 #include <QPushButton>
 
 #define BUTTON_BACKGROUND_COLOR QColor("#2c2c2c")
@@ -7,7 +8,7 @@
 
 class QPropertyAnimation;
 
-struct Button final : QPushButton
+struct Button final : Component<QPushButton>
 {
     Q_OBJECT
     Q_PROPERTY(QColor backgroundColor READ BackgroundColor WRITE SetBackgroundColor)

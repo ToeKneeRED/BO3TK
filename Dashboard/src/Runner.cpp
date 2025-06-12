@@ -1,8 +1,10 @@
+#include "Dashboard.h"
+#include "Log.h"
 #include <filesystem>
 #include "Runner.h"
-#include "Log.h"
+#include "Button.h"
+#include "InputField.h"
 #include "shellapi.h"
-#include "Dashboard.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ const LPWSTR lpCmdLine, _In_ int)
 {
@@ -174,10 +176,11 @@ void Runner::CreateDashboardComponents()
     Dashboard::GamePath = Dashboard::Settings->value("GamePath", GAME_PATH).toString().toUtf8().constData();
     Dashboard::DllPath = Dashboard::Settings->value("DllPath", DLL_PATH).toString().toUtf8().constData();
 
-    Button* launchButton = Dashboard::CreateButton("LaunchButton", "BO3Enhanced");
+    Button* launchButton = Dashboard::CreateComponent<Button>("BO3Enhanced", Dashboard::Window);
     launchButton->OnPress += [=] {
         Runner::OnLaunchButtonPress(launchButton);
     };
+    Dashboard::Layout->addWidget(launchButton);
 
     QHBoxLayout* rowLayout = new QHBoxLayout(Dashboard::Window);
     QVBoxLayout* leftColumnLayout = new QVBoxLayout(Dashboard::Window);
@@ -187,7 +190,7 @@ void Runner::CreateDashboardComponents()
     gamePathText->setText("Game Path");
     gamePathText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
     gamePathText->setAlignment(Qt::AlignmentFlag::AlignHCenter);
-    InputField* gamePathInputField = Dashboard::CreateInputField("GamePath", Dashboard::GamePath.c_str());
+    InputField* gamePathInputField = Dashboard::CreateComponent<InputField>(Dashboard::GamePath.c_str(), Dashboard::Window);
     gamePathInputField->OnSubmit += [=] {
         Dashboard::GamePath = gamePathInputField->text().toUtf8().constData();
         Dashboard::GamePath.erase(std::ranges::remove(Dashboard::GamePath, '\"').begin(), Dashboard::GamePath.end());
@@ -204,7 +207,7 @@ void Runner::CreateDashboardComponents()
     dllPathText->setText("DLL Path");
     dllPathText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
     dllPathText->setAlignment(Qt::AlignmentFlag::AlignHCenter);
-    InputField* dllPathInputField = Dashboard::CreateInputField("DllPath", Dashboard::DllPath.c_str());
+    InputField* dllPathInputField = Dashboard::CreateComponent<InputField>(Dashboard::DllPath.c_str(), Dashboard::Window);
     dllPathInputField->OnSubmit += [=] {
         Dashboard::DllPath = dllPathInputField->text().toUtf8().constData();
         Dashboard::DllPath.erase(std::ranges::remove(Dashboard::DllPath, '\"').begin(), Dashboard::DllPath.end());

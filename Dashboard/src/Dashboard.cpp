@@ -32,33 +32,3 @@ int Dashboard::Run()
 {
     return QApplication::exec();
 }
-
-void Dashboard::AddButton(const char* acName, Button* apButton)
-{
-    Buttons.insert({acName, apButton});
-
-    Layout->addWidget(apButton);
-}
-
-Button* Dashboard::CreateButton(const char* acName, const char* acText)
-{
-    Button* button = new Button(acText, Window);
-    AddButton(acName, button);
-
-    return button;
-}
-
-void Dashboard::AddInputField(const char* acName, InputField* apInputField)
-{
-    InputFields.insert({acName, apInputField});
-
-    Layout->addWidget(apInputField);
-}
-
-InputField* Dashboard::CreateInputField(const char* acName, const char* acText)
-{
-    InputField* inputField = new InputField(acText, Window);
-    AddInputField(acName, inputField);
-
-    return inputField;
-}
