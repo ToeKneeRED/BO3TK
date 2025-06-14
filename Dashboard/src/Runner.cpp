@@ -39,14 +39,15 @@ BOOL Runner::Inject(const DWORD acProcessId, LPCSTR apDllPath)
         return FALSE;
     }
 
-    const HANDLE cProcess =
-        OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, acProcessId);
+    const HANDLE cProcess = OpenProcess(
+        PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
+        FALSE, acProcessId);
     if (!cProcess)
     {
         char buf[256];
         FormatMessageA(
-            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf,
-            (sizeof(buf) / sizeof(char)), nullptr);
+            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(),
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(char)), nullptr);
         Log::Get()->Error("Failed to open process: {}", buf);
         return FALSE;
     }
@@ -68,7 +69,8 @@ BOOL Runner::Inject(const DWORD acProcessId, LPCSTR apDllPath)
     }
 
     const SIZE_T cDllPathLen = strlen(apDllPath) + 1;
-    const LPVOID cRemoteString = VirtualAllocEx(cProcess, nullptr, cDllPathLen, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    const LPVOID cRemoteString =
+        VirtualAllocEx(cProcess, nullptr, cDllPathLen, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     if (!cRemoteString)
     {
         Log::Get()->Error("VirtualAllocEx failed");
@@ -79,8 +81,8 @@ BOOL Runner::Inject(const DWORD acProcessId, LPCSTR apDllPath)
     BOOL result = FALSE;
     if (WriteProcessMemory(cProcess, cRemoteString, apDllPath, cDllPathLen, nullptr))
     {
-        if (const HANDLE cRemoteThread =
-                CreateRemoteThread(cProcess, nullptr, 0, static_cast<LPTHREAD_START_ROUTINE>(cLoadLibraryAddr), cRemoteString, 0, nullptr))
+        if (const HANDLE cRemoteThread = CreateRemoteThread(
+                cProcess, nullptr, 0, static_cast<LPTHREAD_START_ROUTINE>(cLoadLibraryAddr), cRemoteString, 0, nullptr))
         {
             WaitForSingleObject(cRemoteThread, INFINITE);
             CloseHandle(cRemoteThread);
@@ -107,7 +109,8 @@ void Runner::OnLaunchButtonPress(Button* apButton)
     STARTUPINFO sInfo{};
     PROCESS_INFORMATION pInfo{};
 
-    if (const auto cPath = Dashboard::GamePath.c_str(); // TODO: deal with the disgusting \\\\ in paths with spaces, should still work otherwise (-4 hours)
+    if (const auto cPath = Dashboard::GamePath.c_str(); // TODO: deal with the disgusting \\\\ in paths with spaces,
+                                                        // should still work otherwise (-4 hours)
         CreateProcessA(cPath, nullptr, nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, nullptr, &sInfo, &pInfo))
     {
         if (Runner::Inject(pInfo.dwProcessId, DLL_PATH))
@@ -163,8 +166,8 @@ void Runner::OnLaunchButtonPress(Button* apButton)
     {
         char buf[256];
         FormatMessageA(
-            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf,
-            (sizeof(buf) / sizeof(char)), nullptr);
+            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(),
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(char)), nullptr);
         Log::Get()->Error("{}{}", buf, cPath);
 
         apButton->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
@@ -203,7 +206,8 @@ void Runner::CreateDashboardComponents()
     gamePathText->setText("Game Path");
     gamePathText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
     gamePathText->setAlignment(Qt::AlignmentFlag::AlignHCenter);
-    InputField* gamePathInputField = Dashboard::CreateComponent<InputField>(Dashboard::GamePath.c_str(), Dashboard::Window);
+    InputField* gamePathInputField =
+        Dashboard::CreateComponent<InputField>(Dashboard::GamePath.c_str(), Dashboard::Window);
     gamePathInputField->OnSubmit += [=]
     {
         Dashboard::GamePath = gamePathInputField->text().toUtf8().constData();
@@ -221,7 +225,8 @@ void Runner::CreateDashboardComponents()
     dllPathText->setText("DLL Path");
     dllPathText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
     dllPathText->setAlignment(Qt::AlignmentFlag::AlignHCenter);
-    InputField* dllPathInputField = Dashboard::CreateComponent<InputField>(Dashboard::DllPath.c_str(), Dashboard::Window);
+    InputField* dllPathInputField =
+        Dashboard::CreateComponent<InputField>(Dashboard::DllPath.c_str(), Dashboard::Window);
     dllPathInputField->OnSubmit += [=]
     {
         Dashboard::DllPath = dllPathInputField->text().toUtf8().constData();

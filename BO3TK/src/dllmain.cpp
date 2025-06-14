@@ -32,7 +32,8 @@ void ResumeProcess(const DWORD acProcessId)
                 {
                     if (const HMODULE cHNtDll = GetModuleHandleA("ntdll.dll"))
                     {
-                        if (const auto cNtResumeThread = reinterpret_cast<NtResumeThread_t>(GetProcAddress(cHNtDll, "NtResumeThread")))
+                        if (const auto cNtResumeThread =
+                                reinterpret_cast<NtResumeThread_t>(GetProcAddress(cHNtDll, "NtResumeThread")))
                         {
                             ULONG suspendCount = 0;
                             cNtResumeThread(cHThread, &suspendCount);

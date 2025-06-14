@@ -11,7 +11,8 @@ ImGuiService* ImGuiService::Init(const HWND& acWindow, ID3D11Device* apDevice, I
 {
     if (!s_instance)
     {
-        OriginalWndProc = reinterpret_cast<WNDPROC>(SetWindowLongPtrA(g_window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(WndProcHook)));
+        OriginalWndProc = reinterpret_cast<WNDPROC>(
+            SetWindowLongPtrA(g_window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(WndProcHook)));
         s_instance = new ImGuiService(acWindow, apDevice, apContext);
     }
     return s_instance;
@@ -146,7 +147,9 @@ bool ImGuiService::Test()
 
     RegisterClassEx(&windowClass);
 
-    const HWND cWindow = CreateWindow(windowClass.lpszClassName, "Toe Knee Test", WS_OVERLAPPEDWINDOW, 0, 0, 100, 100, NULL, NULL, windowClass.hInstance, NULL);
+    const HWND cWindow = CreateWindow(
+        windowClass.lpszClassName, "Toe Knee Test", WS_OVERLAPPEDWINDOW, 0, 0, 100, 100, NULL, NULL,
+        windowClass.hInstance, NULL);
 
     if (const auto cD3d11 = GetModuleHandleA("d3d11.dll"); !cD3d11)
     {
@@ -155,7 +158,8 @@ bool ImGuiService::Test()
     }
     else
     {
-        if (void* d3D11CreateDeviceAndSwapChain; (d3D11CreateDeviceAndSwapChain = GetProcAddress(cD3d11, "D3D11CreateDeviceAndSwapChain")) == nullptr)
+        if (void* d3D11CreateDeviceAndSwapChain;
+            (d3D11CreateDeviceAndSwapChain = GetProcAddress(cD3d11, "D3D11CreateDeviceAndSwapChain")) == nullptr)
         {
             log->Error("Failed to find D3D11CreateDeviceAndSwapChain");
 
@@ -200,10 +204,11 @@ bool ImGuiService::Test()
             ID3D11DeviceContext* context;
 
             if (static_cast<long(__stdcall*)(
-                    IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, const D3D_FEATURE_LEVEL*, UINT, UINT, const DXGI_SWAP_CHAIN_DESC*, IDXGISwapChain**,
-                    ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**)>(d3D11CreateDeviceAndSwapChain)(
-                    nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, featureLevels, 1, D3D11_SDK_VERSION, &swapChainDesc, &swapChain, &device, &featureLevel,
-                    &context) < 0)
+                    IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, const D3D_FEATURE_LEVEL*, UINT, UINT,
+                    const DXGI_SWAP_CHAIN_DESC*, IDXGISwapChain**, ID3D11Device**, D3D_FEATURE_LEVEL*,
+                    ID3D11DeviceContext**)>(d3D11CreateDeviceAndSwapChain)(
+                    nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, featureLevels, 1, D3D11_SDK_VERSION, &swapChainDesc,
+                    &swapChain, &device, &featureLevel, &context) < 0)
             {
                 log->Error("D3D11CreateDeviceAndSwapChain call failed...");
                 DestroyWindow(cWindow);

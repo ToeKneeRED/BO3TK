@@ -22,8 +22,8 @@ struct WinEvent
         {
             char buf[256];
             FormatMessageA(
-                FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf,
-                (sizeof(buf) / sizeof(char)), nullptr);
+                FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(),
+                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(char)), nullptr);
             Log::Get()->Error("Failed to create WinEvent: {}", buf);
         }
     }
@@ -42,7 +42,10 @@ struct WinEvent
     [[nodiscard]] HANDLE Get() const { return m_event; }
     void Set() const { ::SetEvent(m_event); }
     void Reset() const { ::ResetEvent(m_event); }
-    [[nodiscard]] bool Wait(const DWORD cMs = INFINITE) const { return ::WaitForSingleObject(m_event, cMs) == WAIT_OBJECT_0; }
+    [[nodiscard]] bool Wait(const DWORD cMs = INFINITE) const
+    {
+        return ::WaitForSingleObject(m_event, cMs) == WAIT_OBJECT_0;
+    }
 
 private:
     HANDLE m_event;
@@ -53,11 +56,15 @@ template <typename DataType, typename... Args> struct Event
 {
     Event() = default;
     explicit Event(const DataType& acData, const EventType& acType)
-        : m_type(acType), m_data(acData)
+        : m_type(acType)
+        , m_data(acData)
     {
     }
 
-    static Event* Create(const DataType& acData, const EventType& acType = EventType::None) { return new Event(acData, acType); }
+    static Event* Create(const DataType& acData, const EventType& acType = EventType::None)
+    {
+        return new Event(acData, acType);
+    }
     void Read(const DataType& acData)
     {
         std::lock_guard lock(m_mutex);
@@ -70,7 +77,7 @@ template <typename DataType, typename... Args> struct Event
         m_isDirty.store(false);
         return m_data;
     }
-    //void SetEvent() const { m_winEvent.Set(); }
+    // void SetEvent() const { m_winEvent.Set(); }
     [[nodiscard]] bool IsDirty() const { return m_isDirty.load(); }
 
 private:

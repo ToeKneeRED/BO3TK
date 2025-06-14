@@ -13,8 +13,9 @@
 #define LOG_OUTPUT(prefix, color, reset, msg, ...) \
     std::cout << std::format(prefix, color, reset) << std::vformat(msg, std::make_format_args(__VA_ARGS__)) << std::endl
 
-#define LOG_WOUTPUT(prefix, color, reset, msg, ...) \
-    std::wcout << std::format(prefix, color, reset) << std::vformat(msg, std::make_format_args(__VA_ARGS__)) << std::endl
+#define LOG_WOUTPUT(prefix, color, reset, msg, ...)                                                          \
+    std::wcout << std::format(prefix, color, reset) << std::vformat(msg, std::make_format_args(__VA_ARGS__)) \
+               << std::endl
 #else
 #define LOG_OUTPUT(prefix, color, reset, msg, ...) \
     spdlog::info("[{}{}{}] {}{}", color, prefix, reset, fmt::format(fmt::runtime(msg), __VA_ARGS__), NarrowText::Reset)
@@ -56,7 +57,8 @@ struct Log
 
         template <typename T> void Set(const Type& acType, const T* acColor)
         {
-            static_assert(!std::is_same_v<T, char> && !std::is_same_v<T, wchar_t>, STATIC_ASSERT_MSG("Unsupported type"));
+            static_assert(
+                !std::is_same_v<T, char> && !std::is_same_v<T, wchar_t>, STATIC_ASSERT_MSG("Unsupported type"));
 
             if constexpr (std::is_same_v<T, char>)
             {
