@@ -2,6 +2,8 @@
 #include "Log.h"
 #include <filesystem>
 #include "Runner.h"
+
+#include "BrowseButton.h"
 #include "Button.h"
 #include "InputField.h"
 #include "shellapi.h"
@@ -201,6 +203,7 @@ void Runner::CreateDashboardComponents()
     QHBoxLayout* rowLayout = new QHBoxLayout(Dashboard::Window);
     QVBoxLayout* leftColumnLayout = new QVBoxLayout(Dashboard::Window);
     QVBoxLayout* rightColumnLayout = new QVBoxLayout(Dashboard::Window);
+    QHBoxLayout* rightRowLayout = new QHBoxLayout(Dashboard::Window);
 
     QLabel* gamePathText = new QLabel;
     gamePathText->setText("Game Path");
@@ -221,10 +224,10 @@ void Runner::CreateDashboardComponents()
     leftColumnLayout->addWidget(gamePathText);
     leftColumnLayout->addWidget(gamePathInputField);
 
-    QLabel* dllPathText = new QLabel;
-    dllPathText->setText("DLL Path");
-    dllPathText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
-    dllPathText->setAlignment(Qt::AlignmentFlag::AlignHCenter);
+    QLabel* dllPathLabel = new QLabel;
+    dllPathLabel->setText("DLL Path");
+    dllPathLabel->setFont(QFont("Jetbrains Mono NL Semibold", 10));
+    dllPathLabel->setAlignment(Qt::AlignmentFlag::AlignHCenter);
     InputField* dllPathInputField =
         Dashboard::CreateComponent<InputField>(Dashboard::DllPath.c_str(), Dashboard::Window);
     dllPathInputField->OnSubmit += [=]
@@ -237,12 +240,31 @@ void Runner::CreateDashboardComponents()
 
         Dashboard::Settings->setValue("DllPath", Dashboard::DllPath.c_str());
     };
-    rightColumnLayout->addWidget(dllPathText);
+    dllPathInputField->setTextMargins(0, 0, 32, 0); // leave space for the button inside the input field
+
+    BrowseButton* dllBrowseButton = Dashboard::CreateComponent<BrowseButton>("Browse for dll", dllPathInputField);
+    dllPathInputField->OnResize += [=]
+    {
+        dllBrowseButton->move(dllPathInputField->width() - dllBrowseButton->width() - 4, 
+            (dllPathInputField->height() - dllBrowseButton->height()) / 2);
+    };
+    dllBrowseButton->OnFileSelect += [=](const QString& acPath)
+    {
+        dllPathInputField->setText(acPath);
+    };
+    dllBrowseButton->raise();
+    dllBrowseButton->show();
+
+    QObject::connect(dllPathInputField, &QLineEdit::textChanged, [=](const QString&) {
+        dllBrowseButton->move(dllPathInputField->width() - dllBrowseButton->width() - 4,
+                              (dllPathInputField->height() - dllBrowseButton->height()) / 2);
+    });
+
+    rightColumnLayout->addWidget(dllPathLabel);
     rightColumnLayout->addWidget(dllPathInputField);
 
     rowLayout->addLayout(leftColumnLayout);
     rowLayout->addLayout(rightColumnLayout);
-
     Dashboard::Layout->addLayout(rowLayout);
     Dashboard::Layout->addStretch();
 }

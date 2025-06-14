@@ -26,3 +26,19 @@ InputField::InputField(const QString& acText, QWidget* apParent)
     connect(this, &InputField::focusLost, [this] { this->OnSubmit(); });
     connect(this, &QLineEdit::returnPressed, [this] { this->OnSubmit(); });
 }
+
+void InputField::focusOutEvent(QFocusEvent* event)
+{
+    emit focusLost();
+    QLineEdit::focusOutEvent(event);
+
+    OnSubmit();
+}
+
+void InputField::resizeEvent(QResizeEvent* event)
+{
+    QLineEdit::resizeEvent(event);
+
+    OnResize();
+}
+

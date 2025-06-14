@@ -7,19 +7,15 @@ struct InputField final : Component<QLineEdit>
 {
     Q_OBJECT
 public:
-    explicit InputField(const QString& text, QWidget* parent = nullptr);
+    explicit InputField(const QString& acText, QWidget* apParent = nullptr);
 
     Handler<> OnSubmit;
+    Handler<> OnResize;
 
 signals:
     void focusLost();
 
 protected:
-    void focusOutEvent(QFocusEvent* event) override
-    {
-        emit focusLost();
-        QLineEdit::focusOutEvent(event);
-
-        OnSubmit();
-    }
+    void resizeEvent(QResizeEvent* event) override;
+    void focusOutEvent(QFocusEvent* event) override;
 };

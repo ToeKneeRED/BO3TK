@@ -12,7 +12,7 @@ auto* g_log = Log::Get();
 std::atomic g_stop = false;
 
 typedef LONG(NTAPI* NtResumeThread_t)(HANDLE, PULONG);
-void ResumeProcess(const DWORD acProcessId)
+static void ResumeProcess(const DWORD acProcessId)
 {
     const HANDLE cThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
 
@@ -57,7 +57,7 @@ __int64 __fastcall HookSub_141E3FD80(__int64 a1, __int64 a2)
     return OriginalSub(a1, a2);
 }
 
-DWORD WINAPI MainThread(const std::atomic<bool>& aStop)
+static DWORD WINAPI MainThread(const std::atomic<bool>& aStop)
 {
     MODULEINFO modInfo;
     if (GetModuleInformation(GetCurrentProcess(), static_cast<HMODULE>(Exe::BaseModule), &modInfo, sizeof(modInfo)))
@@ -101,7 +101,7 @@ DWORD WINAPI MainThread(const std::atomic<bool>& aStop)
     return TRUE;
 }
 
-BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)
+static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call)
     {
@@ -123,7 +123,7 @@ BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPV
                         g_stop.store(true);
                     }
 
-                    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(300));
                 }
             })
             .detach();
