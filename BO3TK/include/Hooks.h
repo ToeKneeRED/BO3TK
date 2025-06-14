@@ -22,29 +22,29 @@ inline ID3D11RenderTargetView* g_mainRenderTargetView;
 
 inline ImGuiService* g_imguiService = nullptr;
 
-#define CREATE_HOOK(target, detour, original)                                                                                      \
-    g_status = MH_CreateHook((void*)(target), (LPVOID) & detour, (LPVOID*)&original);                                              \
-    if (g_status != MH_OK)                                                                                                         \
-    {                                                                                                                              \
-        Log::Get()->Error("{}Failed to create hook for {} {}", NarrowText::Foreground::Red, #target, MH_StatusToString(g_status)); \
-    }                                                                                                                              \
-    else                                                                                                                           \
-    {                                                                                                                              \
-        Log::Get()->Print(L"{}Hook created: {}", WideText::Foreground::Green, L#target);                                           \
-    }
-
-#define ENABLE_HOOK(target)                                                                                                        \
-    g_status = MH_EnableHook((LPVOID)(target));                                                                                    \
-    if (g_status != MH_OK)                                                                                                         \
-    {                                                                                                                              \
-        Log::Get()->Error("{}Failed to enable hook for {} {}", NarrowText::Foreground::Red, #target, MH_StatusToString(g_status)); \
-    }                                                                                                                              \
-    else                                                                                                                           \
-    {                                                                                                                              \
-        Log::Get()->Print(L"{}Hook enabled: {}", WideText::Foreground::Green, L#target);                                           \
-    }
-
 #define ADDRESS(offset) (uintptr_t)((uintptr_t)Exe::BaseModule + (offset))
+
+#define CREATE_HOOK(offset, detour, original)                                                                                      \
+    g_status = MH_CreateHook((void*)(ADDRESS(offset)), (LPVOID) &detour, (LPVOID*)&original);                                           \
+    if (g_status != MH_OK)                                                                                                         \
+    {                                                                                                                              \
+        Log::Get()->Error("{}Failed to create hook for {} {}", NarrowText::Foreground::Red, #offset, MH_StatusToString(g_status)); \
+    }                                                                                                                              \
+    else                                                                                                                           \
+    {                                                                                                                              \
+        Log::Get()->Print(L"{}Hook created: {}", WideText::Foreground::Green, L#offset);                                           \
+    }
+
+#define ENABLE_HOOK(offset)                                                                                                        \
+    g_status = MH_EnableHook((LPVOID)(ADDRESS(offset)));                                                                                    \
+    if (g_status != MH_OK)                                                                                                         \
+    {                                                                                                                              \
+        Log::Get()->Error("{}Failed to enable hook for {} {}", NarrowText::Foreground::Red, #offset, MH_StatusToString(g_status)); \
+    }                                                                                                                              \
+    else                                                                                                                           \
+    {                                                                                                                              \
+        Log::Get()->Print(L"{}Hook enabled: {}", WideText::Foreground::Green, L#offset);                                           \
+    }
 
 // Need to find base ptr
 struct Player

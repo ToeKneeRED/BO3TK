@@ -4,8 +4,10 @@
 #include <QPropertyAnimation>
 #include <QStyleOptionButton>
 
-Button::Button(const QString& text, QWidget* parent)
+Button::Button(const QString& acText, QWidget* apParent)
 {
+    setText(acText);
+    setParent(apParent);
     setFont(QFont("JetBrains Mono NL Semibold", 14));
     setCursor(Qt::PointingHandCursor);
     setFlat(true);
@@ -28,8 +30,6 @@ Button::Button(const QString& text, QWidget* parent)
             background-color: #1e1e1e;
         }
     )");
-
-    setText(text);
 
     m_backgroundAnimation = new QPropertyAnimation(this, "backgroundColor");
     m_backgroundAnimation->setEasingCurve(QEasingCurve::InOutCubic);

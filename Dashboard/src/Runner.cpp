@@ -79,7 +79,8 @@ BOOL Runner::Inject(const DWORD acProcessId, LPCSTR apDllPath)
     BOOL result = FALSE;
     if (WriteProcessMemory(cProcess, cRemoteString, apDllPath, cDllPathLen, nullptr))
     {
-        if (const HANDLE cRemoteThread = CreateRemoteThread(cProcess, nullptr, 0, static_cast<LPTHREAD_START_ROUTINE>(cLoadLibraryAddr), cRemoteString, 0, nullptr))
+        if (const HANDLE cRemoteThread =
+                CreateRemoteThread(cProcess, nullptr, 0, static_cast<LPTHREAD_START_ROUTINE>(cLoadLibraryAddr), cRemoteString, 0, nullptr))
         {
             WaitForSingleObject(cRemoteThread, INFINITE);
             CloseHandle(cRemoteThread);

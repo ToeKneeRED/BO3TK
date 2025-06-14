@@ -7,7 +7,7 @@
 
 struct Dashboard
 {
-    static void Init(int32_t aArgc = 0, char** aArgv = nullptr);
+    static void Init(int32_t aArgc = 0, char** apArgv = nullptr);
     static int Run();
 
     static void SetIcon(const QIcon& acIcon) { Window->setWindowIcon(acIcon); }

@@ -12,9 +12,10 @@ auto* g_log = Log::Get();
 std::atomic g_stop = false;
 
 typedef LONG(NTAPI* NtResumeThread_t)(HANDLE, PULONG);
-void ResumeProcess(DWORD processID)
+void ResumeProcess(const DWORD acProcessId)
 {
     const HANDLE cThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+
     if (cThreadSnap == INVALID_HANDLE_VALUE)
         return;
 
@@ -25,7 +26,7 @@ void ResumeProcess(DWORD processID)
     {
         do
         {
-            if (te32.th32OwnerProcessID == processID)
+            if (te32.th32OwnerProcessID == acProcessId)
             {
                 if (const HANDLE cHThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te32.th32ThreadID))
                 {
@@ -75,9 +76,9 @@ DWORD WINAPI MainThread(const std::atomic<bool>& aStop)
         // need to wait for exe to get far enough along so it doesnt grab garbage
         ResumeProcess(GetCurrentProcessId());
 
-        if (const MH_STATUS status = MH_Initialize(); status != MH_OK)
+        if (const MH_STATUS cStatus = MH_Initialize(); cStatus != MH_OK)
         {
-            g_log->Error("Failed minhook initialize: {}", MH_StatusToString(status));
+            g_log->Error("Failed minhook initialize: {}", MH_StatusToString(cStatus));
             return FALSE;
         }
 
@@ -93,13 +94,13 @@ DWORD WINAPI MainThread(const std::atomic<bool>& aStop)
         g_log->Print("{}Present hooked", NarrowText::Foreground::Green);
     }
 
-    CREATE_HOOK(ADDRESS(0x1E3FD80), HookSub_141E3FD80, OriginalSub)
-    ENABLE_HOOK(ADDRESS(0x1E3FD80))
+    CREATE_HOOK(0x1E3FD80, HookSub_141E3FD80, OriginalSub)
+    ENABLE_HOOK(0x1E3FD80)
 
     return TRUE;
 }
 
-static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)
+BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call)
     {

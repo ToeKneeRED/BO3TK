@@ -1,6 +1,7 @@
 target("Dashboard")
     set_kind("binary")
     set_languages("cxx23")
+    add_defines("_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING")
 
     add_rules("qt.widgetapp", "qt.moc")
 

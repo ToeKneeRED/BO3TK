@@ -12,9 +12,9 @@ BraceWrapping:
   IndentBraces: true
 BreakBeforeBraces: Allman
 BreakConstructorInitializers: BeforeComma
-ColumnLimit: 160
+ColumnLimit: 120
 IndentWidth: 4
-PenaltyBreakFirstLessLess: 160
+PenaltyBreakFirstLessLess: 120
 PointerAlignment: Left
 SortIncludes: Never
 SpaceBeforeParensOptions:
