@@ -18,15 +18,16 @@ BrowseButton::BrowseButton(const QString& acText, QWidget* parent)
         }
     )");
 
-    connect(this, &QToolButton::clicked, [this] 
-    {
-        if (const QString cFilePath = QFileDialog::getOpenFileName(this, "Select DLL", QString(), 
-            "DLL Files (*.dll);;All Files (*)"); !cFilePath.isEmpty()) 
+    connect(
+        this, &QToolButton::clicked,
+        [this]
         {
-            emit fileSelected(cFilePath);
-        }
-    });
-    connect(this, &BrowseButton::fileSelected, [this](const QString& acPath) {
-        OnFileSelect(acPath);
-    });
+            if (const QString cFilePath =
+                    QFileDialog::getOpenFileName(this, "Select DLL", QString(), "DLL Files (*.dll);;All Files (*)");
+                !cFilePath.isEmpty())
+            {
+                emit fileSelected(cFilePath);
+            }
+        });
+    connect(this, &BrowseButton::fileSelected, [this](const QString& acPath) { OnFileSelect(acPath); });
 }

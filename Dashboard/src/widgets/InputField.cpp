@@ -41,4 +41,3 @@ void InputField::resizeEvent(QResizeEvent* event)
 
     OnResize();
 }
-

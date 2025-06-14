@@ -245,7 +245,8 @@ void Runner::CreateDashboardComponents()
     BrowseButton* dllBrowseButton = Dashboard::CreateComponent<BrowseButton>("Browse for dll", dllPathInputField);
     dllPathInputField->OnResize += [=]
     {
-        dllBrowseButton->move(dllPathInputField->width() - dllBrowseButton->width() - 4, 
+        dllBrowseButton->move(
+            dllPathInputField->width() - dllBrowseButton->width() - 4,
             (dllPathInputField->height() - dllBrowseButton->height()) / 2);
     };
     dllBrowseButton->OnFileSelect += [=](const QString& acPath)
@@ -255,10 +256,14 @@ void Runner::CreateDashboardComponents()
     dllBrowseButton->raise();
     dllBrowseButton->show();
 
-    QObject::connect(dllPathInputField, &QLineEdit::textChanged, [=](const QString&) {
-        dllBrowseButton->move(dllPathInputField->width() - dllBrowseButton->width() - 4,
-                              (dllPathInputField->height() - dllBrowseButton->height()) / 2);
-    });
+    QObject::connect(
+        dllPathInputField, &QLineEdit::textChanged,
+        [=](const QString&)
+        {
+            dllBrowseButton->move(
+                dllPathInputField->width() - dllBrowseButton->width() - 4,
+                (dllPathInputField->height() - dllBrowseButton->height()) / 2);
+        });
 
     rightColumnLayout->addWidget(dllPathLabel);
     rightColumnLayout->addWidget(dllPathInputField);

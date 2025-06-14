@@ -14,5 +14,4 @@ public:
 
 signals:
     void fileSelected(const QString& path);
-
 };
