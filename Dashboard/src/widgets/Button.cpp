@@ -38,6 +38,8 @@ Button::Button(const QString& acText, QWidget* apParent)
     m_textAnimation = new QPropertyAnimation(this, "textColor");
     m_textAnimation->setEasingCurve(QEasingCurve::InOutCubic);
     connect(m_textAnimation, &QAbstractAnimation::finished, [this] { this->m_isTextAnimating = false; });
+
+    show();
 }
 
 void Button::SetBackgroundColor(const QColor& acColor)

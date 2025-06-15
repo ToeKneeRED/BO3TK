@@ -112,6 +112,10 @@ struct ImGuiService
     }
     ImGuiService() = delete;
     ~ImGuiService() noexcept = default;
+    ImGuiService(const ImGuiService&) = delete;
+    ImGuiService(ImGuiService&&) = delete;
+    ImGuiService& operator=(ImGuiService&&) = delete;
+    ImGuiService& operator=(const ImGuiService&) = delete;
 
     static LRESULT CALLBACK WndProcHook(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
     void OnDraw() noexcept;

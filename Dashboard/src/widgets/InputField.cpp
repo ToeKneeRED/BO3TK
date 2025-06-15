@@ -25,6 +25,8 @@ InputField::InputField(const QString& acText, QWidget* apParent)
 
     connect(this, &InputField::focusLost, [this] { this->OnSubmit(); });
     connect(this, &QLineEdit::returnPressed, [this] { this->OnSubmit(); });
+
+    show();
 }
 
 void InputField::focusOutEvent(QFocusEvent* event)

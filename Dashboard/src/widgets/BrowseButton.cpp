@@ -5,16 +5,18 @@
 BrowseButton::BrowseButton(const QString& acText, QWidget* parent)
 {
     setParent(parent);
-    setText(acText);
-    setToolTip("Browse for file...");
+    setToolTip(acText);
     setCursor(Qt::PointingHandCursor);
-    setIcon(QIcon(":/icons/folder.svg"));
-    setIconSize(QSize(16, 16));
+    setIcon(QIcon(":/folder.ico"));
     setStyleSheet(R"(
         QToolButton {
             border: none;
             padding: 4px;
+            border-radius: 4px;
             background-color: none;
+        }
+        QToolButton:hover {
+            background-color: #3c3c3c;
         }
     )");
 
@@ -30,4 +32,6 @@ BrowseButton::BrowseButton(const QString& acText, QWidget* parent)
             }
         });
     connect(this, &BrowseButton::fileSelected, [this](const QString& acPath) { OnFileSelect(acPath); });
+
+    show();
 }

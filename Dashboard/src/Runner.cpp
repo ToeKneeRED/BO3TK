@@ -205,10 +205,10 @@ void Runner::CreateDashboardComponents()
     QVBoxLayout* rightColumnLayout = new QVBoxLayout(Dashboard::Window);
     QHBoxLayout* rightRowLayout = new QHBoxLayout(Dashboard::Window);
 
-    QLabel* gamePathText = new QLabel;
-    gamePathText->setText("Game Path");
-    gamePathText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
-    gamePathText->setAlignment(Qt::AlignmentFlag::AlignHCenter);
+    QLabel* gamePathLabel = new QLabel;
+    gamePathLabel->setText("Game Path");
+    gamePathLabel->setFont(QFont("Jetbrains Mono NL Semibold", 10));
+    gamePathLabel->setAlignment(Qt::AlignmentFlag::AlignHCenter);
     InputField* gamePathInputField =
         Dashboard::CreateComponent<InputField>(Dashboard::GamePath.c_str(), Dashboard::Window);
     gamePathInputField->OnSubmit += [=]
@@ -220,8 +220,32 @@ void Runner::CreateDashboardComponents()
         gamePathInputField->update();
 
         Dashboard::Settings->setValue("GamePath", Dashboard::GamePath.c_str());
+
     };
-    leftColumnLayout->addWidget(gamePathText);
+    gamePathInputField->setTextMargins(0, 0, 32, 0);
+
+    BrowseButton* gameBrowseButton = Dashboard::CreateComponent<BrowseButton>("Browse for game", gamePathInputField);
+    gamePathInputField->OnResize += [=]
+    {
+        gameBrowseButton->move(
+            gamePathInputField->width() - gameBrowseButton->width() - 4,
+            (gamePathInputField->height() - gameBrowseButton->height()) / 2);
+    };
+    gameBrowseButton->OnFileSelect += [=](const QString& acPath)
+    {
+        gamePathInputField->setText(acPath);
+    };
+
+    QObject::connect(
+        gamePathInputField, &QLineEdit::textChanged,
+        [=](const QString&)
+        {
+            gameBrowseButton->move(
+                gamePathInputField->width() - gameBrowseButton->width() - 4,
+                (gamePathInputField->height() - gameBrowseButton->height()) / 2);
+        });
+
+    leftColumnLayout->addWidget(gamePathLabel);
     leftColumnLayout->addWidget(gamePathInputField);
 
     QLabel* dllPathLabel = new QLabel;
@@ -240,7 +264,7 @@ void Runner::CreateDashboardComponents()
 
         Dashboard::Settings->setValue("DllPath", Dashboard::DllPath.c_str());
     };
-    dllPathInputField->setTextMargins(0, 0, 32, 0); // leave space for the button inside the input field
+    dllPathInputField->setTextMargins(0, 0, 32, 0);
 
     BrowseButton* dllBrowseButton = Dashboard::CreateComponent<BrowseButton>("Browse for dll", dllPathInputField);
     dllPathInputField->OnResize += [=]
@@ -253,8 +277,6 @@ void Runner::CreateDashboardComponents()
     {
         dllPathInputField->setText(acPath);
     };
-    dllBrowseButton->raise();
-    dllBrowseButton->show();
 
     QObject::connect(
         dllPathInputField, &QLineEdit::textChanged,
