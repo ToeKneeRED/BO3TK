@@ -4,6 +4,7 @@
 #include <tlhelp32.h>
 #include <Psapi.h>
 
+#include "Event.h"
 #include "Hooks.h"
 #include "ImGuiService.h"
 #include "Log.h"
@@ -111,7 +112,7 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
 
         std::thread(MainThread, std::ref(g_stop)).detach();
         std::thread(
-            [&]()
+            [&]
             {
                 while (!g_stop.load())
                 {
@@ -119,14 +120,20 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
                     {
                         spdlog::default_logger()->flush();
                         g_log->Print("Exiting...");
-
+                        
                         g_stop.store(true);
                     }
 
                     std::this_thread::sleep_for(std::chrono::milliseconds(300));
                 }
-            })
-            .detach();
+            }).detach();
+        std::thread([&]
+        {
+            auto* event = new Event<Shared<char[256]>>{"Local\\BO3TK_Event", "Local\\BO3TK_Mapping", IPC::Create, EventType::Data};
+            Shared<char[256]> s("from dll");
+            event->Write(s);
+            event->SetEvent();
+        }).detach();
     }
     break;
     case DLL_THREAD_ATTACH:

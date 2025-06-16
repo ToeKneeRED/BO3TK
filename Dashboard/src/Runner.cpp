@@ -5,6 +5,7 @@
 
 #include "BrowseButton.h"
 #include "Button.h"
+#include "Event.h"
 #include "InputField.h"
 #include "shellapi.h"
 
@@ -119,35 +120,46 @@ void Runner::OnLaunchButtonPress(Button* apButton)
         {
             apButton->AnimateColors(QColor("#1e5e3d"), QColor("#e0f4e9"));
 
-            std::thread(
-                [hProcess = pInfo.hProcess, hThread = pInfo.hThread, apButton]
+            std::thread( [hProcess = pInfo.hProcess, hThread = pInfo.hThread, apButton]
+            {
+                DWORD exitCode = STILL_ACTIVE;
+
+                while (exitCode == STILL_ACTIVE)
                 {
-                    DWORD exitCode = STILL_ACTIVE;
-
-                    while (exitCode == STILL_ACTIVE)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+                    if (!GetExitCodeProcess(hProcess, &exitCode))
                     {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-                        if (!GetExitCodeProcess(hProcess, &exitCode))
-                        {
-                            break;
-                        }
+                        break;
                     }
+                }
 
-                    QMetaObject::invokeMethod(
-                        apButton,
-                        [=]
+                QMetaObject::invokeMethod(
+                    apButton,
+                    [=]
+                    {
+                        if (!apButton->IsAnimating())
                         {
-                            if (!apButton->IsAnimating())
-                            {
-                                apButton->AnimateToOriginal();
-                            }
-                        },
-                        Qt::QueuedConnection);
+                            apButton->AnimateToOriginal();
+                        }
+                    },
+                    Qt::QueuedConnection);
 
-                    CloseHandle(hProcess);
-                    CloseHandle(hThread);
-                })
-                .detach();
+                CloseHandle(hProcess);
+                CloseHandle(hThread);
+            })
+            .detach();
+
+            std::thread([&]
+            {
+                if (Event<Shared<char[256]>>* event = new Event<Shared<char[256]>>("Local\\BO3TK_Event", "Local\\BO3TK_Mapping", IPC::Open, EventType::Data))
+                {
+                    while (event->WaitForEvent())
+                    {
+                        auto [buffer] = event->Read();
+                        Log::Get()->Print("{}", buffer);
+                    }
+                }
+            }).detach();
         }
         else
         {

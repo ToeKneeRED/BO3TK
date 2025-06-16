@@ -95,7 +95,7 @@ struct Log
     {
         if constexpr (std::is_same_v<T, char>)
         {
-            LOG_OUTPUT("Log", Colors::Narrow::Print, Text<T>::Reset, acMsg, std::forward<Args>(aArgs)...);
+            LOG_OUTPUT("Log", Colors::Narrow::Print, NarrowText::Reset, acMsg, std::forward<Args>(aArgs)...);
         }
         else if constexpr (std::is_same_v<T, wchar_t>)
         {
