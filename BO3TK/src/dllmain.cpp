@@ -129,10 +129,18 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
             }).detach();
         std::thread([&]
         {
-            auto* event = new Event<Shared<char[256]>>{"Local\\BO3TK_Event", "Local\\BO3TK_Mapping", IPC::Create, EventType::Data};
-            Shared<char[256]> s("from dll");
-            event->Write(s);
-            event->SetEvent();
+            auto* eventHandler = new EventHandler<Custom, ExampleEvent>{"BO3TK_dll"};
+            eventHandler->Listen([&](const Custom& acData)
+            {
+                Log::Get()->Print("{} {}", acData.Name, acData.WasSent);
+            });
+        }).detach();
+
+        std::thread([&]
+        {
+            auto* event = new ExampleEvent(IPC::Client, "BO3TK_exe");
+            event->Length = sizeof(Custom);
+            event->Send(*new Custom{.Name = "from dll", .WasSent = true});
         }).detach();
     }
     break;

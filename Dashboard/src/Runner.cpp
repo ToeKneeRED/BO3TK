@@ -9,6 +9,10 @@
 #include "InputField.h"
 #include "shellapi.h"
 
+#include <QMenuBar>
+#include <QMessageBox>
+#include <QApplication>
+
 int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ const LPWSTR lpCmdLine, _In_ int)
 {
     int argc;
@@ -112,8 +116,7 @@ void Runner::OnLaunchButtonPress(Button* apButton)
     STARTUPINFO sInfo{};
     PROCESS_INFORMATION pInfo{};
 
-    if (const auto cPath = Dashboard::GamePath.c_str(); // TODO: deal with the disgusting \\\\ in paths with spaces,
-                                                        // should still work otherwise (-4 hours)
+    if (const auto cPath = Dashboard::GamePath.c_str();
         CreateProcessA(cPath, nullptr, nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, nullptr, &sInfo, &pInfo))
     {
         if (Runner::Inject(pInfo.dwProcessId, DLL_PATH))
@@ -151,14 +154,18 @@ void Runner::OnLaunchButtonPress(Button* apButton)
 
             std::thread([&]
             {
-                if (Event<Shared<char[256]>>* event = new Event<Shared<char[256]>>("Local\\BO3TK_Event", "Local\\BO3TK_Mapping", IPC::Open, EventType::Data))
+                auto* eventHandler = new EventHandler<Custom, ExampleEvent>{"BO3TK_exe"};
+                eventHandler->Listen([&](const Custom& acData)
                 {
-                    while (event->WaitForEvent())
-                    {
-                        auto [buffer] = event->Read();
-                        Log::Get()->Print("{}", buffer);
-                    }
-                }
+                    Log::Get()->Print("{} {}", acData.Name, acData.WasSent);
+                });
+            }).detach();
+
+            std::thread([&]
+            {
+                auto* event = new ExampleEvent(IPC::Client, "BO3TK_dll");
+                event->Length = sizeof(Custom);
+                event->Send(*new Custom{.Name = "from exe", .WasSent = true});
             }).detach();
         }
         else
@@ -200,11 +207,61 @@ void Runner::OnLaunchButtonPress(Button* apButton)
 
 void Runner::CreateDashboardComponents()
 {
+    // Icon
     Dashboard::SetIcon(QIcon(":/BO3TK.ico"));
 
+    // Settings
     Dashboard::GamePath = Dashboard::Settings->value("GamePath", GAME_PATH).toString().toUtf8().constData();
     Dashboard::DllPath = Dashboard::Settings->value("DllPath", DLL_PATH).toString().toUtf8().constData();
 
+    // Layouts
+    QHBoxLayout* rowLayout = new QHBoxLayout(Dashboard::Window);
+    QVBoxLayout* leftColumnLayout = new QVBoxLayout(Dashboard::Window);
+    QVBoxLayout* rightColumnLayout = new QVBoxLayout(Dashboard::Window);
+
+    // Menu Bar
+    QMenuBar* menuBar = new QMenuBar(Dashboard::Window);
+    menuBar->setStyleSheet(R"(
+    QMenu {
+        background-color: #1e1e1e;
+        color: #ffffff;
+        font-family: "Jetbrains Mono NL";
+        font-size: 12px;
+        border: 1px solid #3c3c3c;
+    }
+
+    QMenu::item {
+        background-color: transparent;
+        padding: 6px 12px;
+    }
+
+    QMenu::item:selected {
+        background-color: #2d2d2d; /* Hover */
+        color: #ffffff;
+    }
+
+    QMenu::item:pressed {
+        background-color: #3a3a3a; /* Pressed */
+        color: #ffffff;
+    }
+    QMenu::icon {
+        padding: 6px 12px;
+        width: 10px;
+        height: 10px;
+    })");
+    QMenu* fileMenu = menuBar->addMenu("File");
+    QAction* openAction = fileMenu->addAction(QIcon(":/folder.ico"), "Open");
+    QAction* exitAction = fileMenu->addAction("Exit");
+    QObject::connect(openAction, &QAction::triggered, []() {
+        QMessageBox::information(nullptr, "Open", "Open clicked!");
+    });
+    QObject::connect(exitAction, &QAction::triggered, [&]() {
+        QApplication::quit();
+    });
+    Dashboard::Layout->addWidget(menuBar);
+    menuBar->show();
+
+    // BO3E button
     Button* launchButton = Dashboard::CreateComponent<Button>("BO3Enhanced", Dashboard::Window);
     launchButton->OnPress += [=]
     {
@@ -212,11 +269,7 @@ void Runner::CreateDashboardComponents()
     };
     Dashboard::Layout->addWidget(launchButton);
 
-    QHBoxLayout* rowLayout = new QHBoxLayout(Dashboard::Window);
-    QVBoxLayout* leftColumnLayout = new QVBoxLayout(Dashboard::Window);
-    QVBoxLayout* rightColumnLayout = new QVBoxLayout(Dashboard::Window);
-    QHBoxLayout* rightRowLayout = new QHBoxLayout(Dashboard::Window);
-
+    // Game Path
     QLabel* gamePathLabel = new QLabel;
     gamePathLabel->setText("Game Path");
     gamePathLabel->setFont(QFont("Jetbrains Mono NL Semibold", 10));
@@ -260,6 +313,7 @@ void Runner::CreateDashboardComponents()
     leftColumnLayout->addWidget(gamePathLabel);
     leftColumnLayout->addWidget(gamePathInputField);
 
+    // DLL Path
     QLabel* dllPathLabel = new QLabel;
     dllPathLabel->setText("DLL Path");
     dllPathLabel->setFont(QFont("Jetbrains Mono NL Semibold", 10));
