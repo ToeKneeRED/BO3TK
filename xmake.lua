@@ -4,6 +4,7 @@ set_version("0.0.1")
 set_languages("c11", "cxx23")
 set_policy("build.ccache", false)
 set_policy("package.requires_lock", false)
+add_defines("_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING")
 
 if(is_plat("windows")) then
     set_arch("x64")
@@ -29,6 +30,21 @@ if is_mode("debug") then
 end
 
 add_includedirs("Tools/include", {public = true})
+add_files("common/**.cpp")
+add_headerfiles("common/**.h")
+add_filegroups("common", {rootdir = "../common"})
+
+local function add_recursive_includes(dir)
+    add_includedirs(dir)
+    local subdirs = os.dirs(dir .. "/*")
+    for _, subdir in ipairs(subdirs) do
+        add_recursive_includes(subdir)
+    end
+end
+
+add_recursive_includes("common")
+
+includes("Tools", "BO3TK", "Dashboard")
 
 option("dll")
     set_showmenu(true)
@@ -40,5 +56,3 @@ option("game")
     set_default("BlackOps3.exe")
     set_description("Path to BlackOps3.exe")
 option_end()
-
-includes("Tools", "BO3TK", "Dashboard")

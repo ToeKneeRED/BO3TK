@@ -1,19 +1,28 @@
+#include <filesystem>
+#include <windows.h>
+#include <shellapi.h> // <-- randomly broke and now requires windows.h immediately before ???
+
+#include "Runner.h"
 #include "Dashboard.h"
 #include "Log.h"
-#include <filesystem>
-#include "Runner.h"
-
-#include "BrowseButton.h"
 #include "Button.h"
-#include "Event.h"
+#include "BrowseButton.h"
 #include "InputField.h"
-#include "shellapi.h"
+#include "Event.h"
+#include "CommandEvent.h"
 
 #include <QMenuBar>
-#include <QMessageBox>
 #include <QApplication>
+#include <QPointer>
+#include <QPropertyAnimation>
+#include <QGraphicsOpacityEffect>
 
-int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ const LPWSTR lpCmdLine, _In_ int)
+#include "NotificationManager.h"
+
+static CommandEvent* g_commandEventSender = nullptr;
+
+// something broke and now it doesnt like wWinMain, so now main
+int main(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ const LPWSTR lpCmdLine, _In_ int)
 {
     int argc;
     LPWSTR* argvW = CommandLineToArgvW(lpCmdLine, &argc);
@@ -123,50 +132,40 @@ void Runner::OnLaunchButtonPress(Button* apButton)
         {
             apButton->AnimateColors(QColor("#1e5e3d"), QColor("#e0f4e9"));
 
-            std::thread( [hProcess = pInfo.hProcess, hThread = pInfo.hThread, apButton]
-            {
-                DWORD exitCode = STILL_ACTIVE;
-
-                while (exitCode == STILL_ACTIVE)
+            std::thread(
+                [hProcess = pInfo.hProcess, hThread = pInfo.hThread, apButton]
                 {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-                    if (!GetExitCodeProcess(hProcess, &exitCode))
-                    {
-                        break;
-                    }
-                }
+                    DWORD exitCode = STILL_ACTIVE;
 
-                QMetaObject::invokeMethod(
-                    apButton,
-                    [=]
+                    while (exitCode == STILL_ACTIVE)
                     {
-                        if (!apButton->IsAnimating())
+                        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+                        if (!GetExitCodeProcess(hProcess, &exitCode))
                         {
-                            apButton->AnimateToOriginal();
+                            break;
                         }
-                    },
-                    Qt::QueuedConnection);
+                    }
 
-                CloseHandle(hProcess);
-                CloseHandle(hThread);
-            })
-            .detach();
+                    QMetaObject::invokeMethod(
+                        apButton,
+                        [=]
+                        {
+                            if (!apButton->IsAnimating())
+                            {
+                                apButton->AnimateToOriginal();
+                            }
+                        },
+                        Qt::QueuedConnection);
 
-            std::thread([&]
+                    CloseHandle(hProcess);
+                    CloseHandle(hThread);
+                })
+                .detach();
+
+            /*std::thread([&]
             {
-                auto* eventHandler = new EventHandler<Custom, ExampleEvent>{"BO3TK_exe"};
-                eventHandler->Listen([&](const Custom& acData)
-                {
-                    Log::Get()->Print("{} {}", acData.Name, acData.WasSent);
-                });
-            }).detach();
-
-            std::thread([&]
-            {
-                auto* event = new ExampleEvent(IPC::Client, "BO3TK_dll");
-                event->Length = sizeof(Custom);
-                event->Send(*new Custom{.Name = "from exe", .WasSent = true});
-            }).detach();
+                g_commandEventSender = new CommandEvent(IPC::Client, "BO3TK_dll");
+            }).detach();*/
         }
         else
         {
@@ -215,66 +214,25 @@ void Runner::CreateDashboardComponents()
     Dashboard::DllPath = Dashboard::Settings->value("DllPath", DLL_PATH).toString().toUtf8().constData();
 
     // Layouts
-    QHBoxLayout* rowLayout = new QHBoxLayout(Dashboard::Window);
-    QVBoxLayout* leftColumnLayout = new QVBoxLayout(Dashboard::Window);
-    QVBoxLayout* rightColumnLayout = new QVBoxLayout(Dashboard::Window);
-
-    // Menu Bar
-    QMenuBar* menuBar = new QMenuBar(Dashboard::Window);
-    menuBar->setStyleSheet(R"(
-    QMenu {
-        background-color: #1e1e1e;
-        color: #ffffff;
-        font-family: "Jetbrains Mono NL";
-        font-size: 12px;
-        border: 1px solid #3c3c3c;
-    }
-
-    QMenu::item {
-        background-color: transparent;
-        padding: 6px 12px;
-    }
-
-    QMenu::item:selected {
-        background-color: #2d2d2d; /* Hover */
-        color: #ffffff;
-    }
-
-    QMenu::item:pressed {
-        background-color: #3a3a3a; /* Pressed */
-        color: #ffffff;
-    }
-    QMenu::icon {
-        padding: 6px 12px;
-        width: 10px;
-        height: 10px;
-    })");
-    QMenu* fileMenu = menuBar->addMenu("File");
-    QAction* openAction = fileMenu->addAction(QIcon(":/folder.ico"), "Open");
-    QAction* exitAction = fileMenu->addAction("Exit");
-    QObject::connect(openAction, &QAction::triggered, []() {
-        QMessageBox::information(nullptr, "Open", "Open clicked!");
-    });
-    QObject::connect(exitAction, &QAction::triggered, [&]() {
-        QApplication::quit();
-    });
-    Dashboard::Layout->addWidget(menuBar);
-    menuBar->show();
+    const QPointer cRowLayout = new QHBoxLayout(Dashboard::Window);
+    const QPointer cLeftColumnLayout = new QVBoxLayout(Dashboard::Window);
+    const QPointer cRightColumnLayout = new QVBoxLayout(Dashboard::Window);
 
     // BO3E button
-    Button* launchButton = Dashboard::CreateComponent<Button>("BO3Enhanced", Dashboard::Window);
-    launchButton->OnPress += [=]
+    const QPointer cLaunchButton = Dashboard::CreateComponent<Button>("BO3Enhanced", Dashboard::Window);
+    cLaunchButton->OnPress += [=]
     {
-        Runner::OnLaunchButtonPress(launchButton);
+        Runner::OnLaunchButtonPress(cLaunchButton);
     };
-    Dashboard::Layout->addWidget(launchButton);
+    Dashboard::Layout->addWidget(cLaunchButton);
 
     // Game Path
-    QLabel* gamePathLabel = new QLabel;
-    gamePathLabel->setText("Game Path");
-    gamePathLabel->setFont(QFont("Jetbrains Mono NL Semibold", 10));
-    gamePathLabel->setAlignment(Qt::AlignmentFlag::AlignHCenter);
-    InputField* gamePathInputField =
+    const QPointer cGamePathLabel = new QLabel;
+    cGamePathLabel->setText("Game Path");
+    cGamePathLabel->setStyleSheet(R"(color: #ffffff)");
+    cGamePathLabel->setFont(QFont("Jetbrains Mono NL Semibold", 10));
+    cGamePathLabel->setAlignment(Qt::AlignmentFlag::AlignHCenter);
+    QPointer gamePathInputField =
         Dashboard::CreateComponent<InputField>(Dashboard::GamePath.c_str(), Dashboard::Window);
     gamePathInputField->OnSubmit += [=]
     {
@@ -285,18 +243,17 @@ void Runner::CreateDashboardComponents()
         gamePathInputField->update();
 
         Dashboard::Settings->setValue("GamePath", Dashboard::GamePath.c_str());
-
     };
     gamePathInputField->setTextMargins(0, 0, 32, 0);
 
-    BrowseButton* gameBrowseButton = Dashboard::CreateComponent<BrowseButton>("Browse for game", gamePathInputField);
+    const QPointer cGameBrowseButton = Dashboard::CreateComponent<BrowseButton>("Browse for game", gamePathInputField);
     gamePathInputField->OnResize += [=]
     {
-        gameBrowseButton->move(
-            gamePathInputField->width() - gameBrowseButton->width() - 4,
-            (gamePathInputField->height() - gameBrowseButton->height()) / 2);
+        cGameBrowseButton->move(
+            gamePathInputField->width() - cGameBrowseButton->width() - 4,
+            (gamePathInputField->height() - cGameBrowseButton->height()) / 2);
     };
-    gameBrowseButton->OnFileSelect += [=](const QString& acPath)
+    cGameBrowseButton->OnFileSelect += [=](const QString& acPath)
     {
         gamePathInputField->setText(acPath);
     };
@@ -305,21 +262,21 @@ void Runner::CreateDashboardComponents()
         gamePathInputField, &QLineEdit::textChanged,
         [=](const QString&)
         {
-            gameBrowseButton->move(
-                gamePathInputField->width() - gameBrowseButton->width() - 4,
-                (gamePathInputField->height() - gameBrowseButton->height()) / 2);
+            cGameBrowseButton->move(
+                gamePathInputField->width() - cGameBrowseButton->width() - 4,
+                (gamePathInputField->height() - cGameBrowseButton->height()) / 2);
         });
 
-    leftColumnLayout->addWidget(gamePathLabel);
-    leftColumnLayout->addWidget(gamePathInputField);
+    cLeftColumnLayout->addWidget(cGamePathLabel);
+    cLeftColumnLayout->addWidget(gamePathInputField);
 
     // DLL Path
-    QLabel* dllPathLabel = new QLabel;
-    dllPathLabel->setText("DLL Path");
-    dllPathLabel->setFont(QFont("Jetbrains Mono NL Semibold", 10));
-    dllPathLabel->setAlignment(Qt::AlignmentFlag::AlignHCenter);
-    InputField* dllPathInputField =
-        Dashboard::CreateComponent<InputField>(Dashboard::DllPath.c_str(), Dashboard::Window);
+    const QPointer cDllPathLabel = new QLabel;
+    cDllPathLabel->setText("DLL Path");
+    cDllPathLabel->setStyleSheet(R"(color: #ffffff)");
+    cDllPathLabel->setFont(QFont("Jetbrains Mono NL Semibold", 10));
+    cDllPathLabel->setAlignment(Qt::AlignmentFlag::AlignHCenter);
+    QPointer dllPathInputField = Dashboard::CreateComponent<InputField>(Dashboard::DllPath.c_str(), Dashboard::Window);
     dllPathInputField->OnSubmit += [=]
     {
         Dashboard::DllPath = dllPathInputField->text().toUtf8().constData();
@@ -332,14 +289,14 @@ void Runner::CreateDashboardComponents()
     };
     dllPathInputField->setTextMargins(0, 0, 32, 0);
 
-    BrowseButton* dllBrowseButton = Dashboard::CreateComponent<BrowseButton>("Browse for dll", dllPathInputField);
+    const QPointer cDllBrowseButton = Dashboard::CreateComponent<BrowseButton>("Browse for dll", dllPathInputField);
     dllPathInputField->OnResize += [=]
     {
-        dllBrowseButton->move(
-            dllPathInputField->width() - dllBrowseButton->width() - 4,
-            (dllPathInputField->height() - dllBrowseButton->height()) / 2);
+        cDllBrowseButton->move(
+            dllPathInputField->width() - cDllBrowseButton->width() - 4,
+            (dllPathInputField->height() - cDllBrowseButton->height()) / 2);
     };
-    dllBrowseButton->OnFileSelect += [=](const QString& acPath)
+    cDllBrowseButton->OnFileSelect += [=](const QString& acPath)
     {
         dllPathInputField->setText(acPath);
     };
@@ -348,16 +305,70 @@ void Runner::CreateDashboardComponents()
         dllPathInputField, &QLineEdit::textChanged,
         [=](const QString&)
         {
-            dllBrowseButton->move(
-                dllPathInputField->width() - dllBrowseButton->width() - 4,
-                (dllPathInputField->height() - dllBrowseButton->height()) / 2);
+            cDllBrowseButton->move(
+                dllPathInputField->width() - cDllBrowseButton->width() - 4,
+                (dllPathInputField->height() - cDllBrowseButton->height()) / 2);
         });
 
-    rightColumnLayout->addWidget(dllPathLabel);
-    rightColumnLayout->addWidget(dllPathInputField);
+    cRightColumnLayout->addWidget(cDllPathLabel);
+    cRightColumnLayout->addWidget(dllPathInputField);
 
-    rowLayout->addLayout(leftColumnLayout);
-    rowLayout->addLayout(rightColumnLayout);
-    Dashboard::Layout->addLayout(rowLayout);
+    cRowLayout->addLayout(cLeftColumnLayout);
+    cRowLayout->addLayout(cRightColumnLayout);
+    Dashboard::Layout->addLayout(cRowLayout);
     Dashboard::Layout->addStretch();
+
+    const QPointer cSentEventsLayout = new QVBoxLayout(Dashboard::Window);
+    Dashboard::Layout->addLayout(cSentEventsLayout);
+
+    const QPointer cEventLayout = new QHBoxLayout(Dashboard::Window);
+    QPointer sendEventInputField = Dashboard::CreateComponent<InputField>("", Dashboard::Window);
+    sendEventInputField->setAlignment(Qt::AlignBottom);
+    QObject::connect(
+        sendEventInputField, &QLineEdit::returnPressed,
+        [sendEventInputField, cSentEventsLayout]
+        {
+            if (sendEventInputField->text().isEmpty())
+                return;
+
+            const QPointer cEventText = new QLabel(sendEventInputField->text());
+            cEventText->setStyleSheet(R"(color: #ffffff)");
+            cEventText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
+            cEventText->setFixedHeight(16);
+            cEventText->setAlignment(Qt::AlignBottom);
+            cSentEventsLayout->addWidget(cEventText);
+
+            auto* opacityEffect = new QGraphicsOpacityEffect(cEventText);
+            cEventText->setGraphicsEffect(opacityEffect);
+            opacityEffect->setOpacity(1.0);
+
+            auto* fadeAnim = new QPropertyAnimation(opacityEffect, "opacity", cEventText);
+            fadeAnim->setDuration(1000);
+            fadeAnim->setStartValue(1.0);
+            fadeAnim->setEndValue(0.0);
+            fadeAnim->setEasingCurve(QEasingCurve::Linear);
+
+            QTimer::singleShot(3000, [fadeAnim]() { fadeAnim->start(); });
+
+            QObject::connect(fadeAnim, &QPropertyAnimation::finished, cEventText, &QWidget::deleteLater);
+
+            if (g_commandEventSender)
+            {
+                const std::string cToSend = std::string(sendEventInputField->text().toUtf8().constData());
+                g_commandEventSender->Send(*new std::string(cToSend));
+            }
+
+            NotificationManager::ShowNotification("Command sent: " + sendEventInputField->text(), Dashboard::Window);
+            sendEventInputField->setText("");
+        });
+    const QPointer cSendEventButton = Dashboard::CreateComponent<Button>("Send", Dashboard::Window);
+    cSendEventButton->setFixedWidth(50);
+    cSendEventButton->OnPress += [sendEventInputField]
+    {
+        sendEventInputField->returnPressed();
+    };
+
+    cEventLayout->addWidget(sendEventInputField);
+    cEventLayout->addWidget(cSendEventButton);
+    Dashboard::Layout->addLayout(cEventLayout);
 }

@@ -3,11 +3,18 @@
 #include <d3d11.h>
 #include <tlhelp32.h>
 #include <Psapi.h>
+#include <bcrypt.h>
+#include <windows.h>
 
-#include "Event.h"
 #include "Hooks.h"
-#include "ImGuiService.h"
 #include "Log.h"
+#include "ImGuiService.h"
+#include "CommandEvent.h"
+#include <Handler.h>
+
+#include "CommandDispatcher.h"
+
+#pragma comment(lib, "bcrypt.lib")
 
 auto* g_log = Log::Get();
 std::atomic g_stop = false;
@@ -48,17 +55,17 @@ static void ResumeProcess(const DWORD acProcessId)
     CloseHandle(cThreadSnap);
 }
 
-// function hook test
-typedef __int64(__fastcall* Sub_141E3FD80_t)(__int64 a1, __int64 a2);
-Sub_141E3FD80_t OriginalSub = nullptr;
-__int64 __fastcall HookSub_141E3FD80(__int64 a1, __int64 a2)
+typedef int(WINAPI* MessageBoxA_t)(HWND, LPCSTR, LPCSTR, UINT);
+MessageBoxA_t OriginalMessageBoxA = nullptr;
+inline int WINAPI HookMessageBoxA(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT type)
 {
-    g_log->Print("called thing");
+    if (!strcmp(lpCaption, "Safe mode"))
+        return IDNO; // i am lazy
 
-    return OriginalSub(a1, a2);
+    return OriginalMessageBoxA(hWnd, lpText, lpCaption, type);
 }
 
-static DWORD WINAPI MainThread(const std::atomic<bool>& aStop)
+static DWORD WINAPI MainThread(const std::atomic<bool>& acStop)
 {
     MODULEINFO modInfo;
     if (GetModuleInformation(GetCurrentProcess(), static_cast<HMODULE>(Exe::BaseModule), &modInfo, sizeof(modInfo)))
@@ -86,7 +93,7 @@ static DWORD WINAPI MainThread(const std::atomic<bool>& aStop)
 
         do
         {
-            if (aStop)
+            if (acStop)
                 return FALSE;
 
             g_log->Print("{}Waiting for Present hook...", NarrowText::Foreground::Yellow);
@@ -96,10 +103,7 @@ static DWORD WINAPI MainThread(const std::atomic<bool>& aStop)
         g_log->Print("{}Present hooked", NarrowText::Foreground::Green);
     }
 
-    CREATE_HOOK(0x1E3FD80, HookSub_141E3FD80, OriginalSub)
-    ENABLE_HOOK(0x1E3FD80)
-
-    return TRUE;
+    LIB_HOOK("user32.dll", MessageBoxA, &HookMessageBoxA, &OriginalMessageBoxA)
 }
 
 static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -120,28 +124,56 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
                     {
                         spdlog::default_logger()->flush();
                         g_log->Print("Exiting...");
-                        
+
                         g_stop.store(true);
                     }
 
                     std::this_thread::sleep_for(std::chrono::milliseconds(300));
                 }
-            }).detach();
-        std::thread([&]
+            })
+            .detach();
+        /*std::thread([&]
         {
-            auto* eventHandler = new EventHandler<Custom, ExampleEvent>{"BO3TK_dll"};
-            eventHandler->Listen([&](const Custom& acData)
-            {
-                Log::Get()->Print("{} {}", acData.Name, acData.WasSent);
-            });
-        }).detach();
+            auto* eventHandler = new EventHandler<CommandEvent>{"BO3TK_dll"};
+            CommandDispatcher dispatcher;
 
-        std::thread([&]
-        {
-            auto* event = new ExampleEvent(IPC::Client, "BO3TK_exe");
-            event->Length = sizeof(Custom);
-            event->Send(*new Custom{.Name = "from dll", .WasSent = true});
-        }).detach();
+            eventHandler->Listen([&](const std::string& acData)
+            {
+                const std::string& cPrefix = dispatcher.Prefix;
+                if (acData.starts_with(cPrefix))
+                {
+                    const auto cStart = acData.find('(');
+                    const auto cEnd = acData.find(')');
+
+                    if (cStart == std::string::npos || cEnd == std::string::npos || cEnd <= cStart)
+                        return;
+
+                    const std::string cCommandName = acData.substr(cPrefix.size(), cStart - cPrefix.size());
+                    const std::string cArgString = acData.substr(cStart + 1, cEnd - cStart - 1);
+
+                    std::vector<std::string> args;
+                    std::stringstream ss(cArgString);
+                    std::string token;
+                    while (std::getline(ss, token, ',')) {
+                        token.erase(0, token.find_first_not_of(" \t"));
+                        token.erase(token.find_last_not_of(" \t") + 1);
+                        args.push_back(token);
+                    }
+
+                    Log::Get()->Print("{} {}", cCommandName.c_str(), cArgString.c_str());
+                    for (const auto& cArg : args)
+                    {
+                        Log::Get()->Print("arg: {}", cArg.c_str());
+                    }
+
+                    try {
+                        dispatcher.Execute(acData);
+                    } catch (const std::exception& cException) {
+                        Log::Get()->Error("Command execution failed: {}", cException.what());
+                    }
+                }
+            });
+        }).detach();*/
     }
     break;
     case DLL_THREAD_ATTACH:

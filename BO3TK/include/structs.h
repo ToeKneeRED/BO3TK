@@ -38,42 +38,42 @@ typedef int binmap_t;
 typedef int bindex_t;
 typedef int GameTypeId_t;
 
-enum ClientNum_t : int32_t
+enum ClientNum_t : int32_t /*int8_t*/
 {
     CLIENT_INDEX_0 = 0,
     CLIENT_INDEX_FIRST = 0,
     CLIENT_INDEX_1 = 1,
-    CLIENT_INDEX_2,
-    CLIENT_INDEX_3,
-    CLIENT_INDEX_4,
-    CLIENT_INDEX_5,
-    CLIENT_INDEX_6,
-    CLIENT_INDEX_7,
-    CLIENT_INDEX_8,
-    CLIENT_INDEX_9,
-    CLIENT_INDEX_10,
-    CLIENT_INDEX_11,
-    CLIENT_INDEX_12,
-    CLIENT_INDEX_13,
-    CLIENT_INDEX_14,
-    CLIENT_INDEX_15,
-    CLIENT_INDEX_16,
-    CLIENT_INDEX_17,
-    CLIENT_INDEX_18,
-    CLIENT_INDEX_COUNT,
-    CLIENT_INDEX_19,
-    CLIENT_INDEX_20,
-    CLIENT_INDEX_21,
-    CLIENT_INDEX_22,
-    CLIENT_INDEX_23,
-    CLIENT_INDEX_24,
-    CLIENT_INDEX_25,
-    CLIENT_INDEX_26,
-    CLIENT_INDEX_27,
-    CLIENT_INDEX_28,
-    CLIENT_INDEX_29,
-    CLIENT_INDEX_30,
-    CLIENT_INDEX_31,
+    CLIENT_INDEX_2 = 2,
+    CLIENT_INDEX_3 = 3,
+    CLIENT_INDEX_4 = 4,
+    CLIENT_INDEX_5 = 5,
+    CLIENT_INDEX_6 = 6,
+    CLIENT_INDEX_7 = 7,
+    CLIENT_INDEX_8 = 8,
+    CLIENT_INDEX_9 = 9,
+    CLIENT_INDEX_10 = 10,
+    CLIENT_INDEX_11 = 11,
+    CLIENT_INDEX_12 = 12,
+    CLIENT_INDEX_13 = 13,
+    CLIENT_INDEX_14 = 14,
+    CLIENT_INDEX_15 = 15,
+    CLIENT_INDEX_16 = 16,
+    CLIENT_INDEX_17 = 17,
+    CLIENT_INDEX_18 = 18,
+    CLIENT_INDEX_COUNT = 19,
+    CLIENT_INDEX_19 = 20,
+    CLIENT_INDEX_20 = 21,
+    CLIENT_INDEX_21 = 22,
+    CLIENT_INDEX_22 = 23,
+    CLIENT_INDEX_23 = 24,
+    CLIENT_INDEX_24 = 25,
+    CLIENT_INDEX_25 = 26,
+    CLIENT_INDEX_26 = 27,
+    CLIENT_INDEX_27 = 28,
+    CLIENT_INDEX_28 = 29,
+    CLIENT_INDEX_29 = 30,
+    CLIENT_INDEX_30 = 31,
+    CLIENT_INDEX_31 = 32,
     INVALID_CLIENT_INDEX = -1
 };
 
@@ -1644,8 +1644,25 @@ struct dvar_t // 0x88 / 0x8
     DvarValue current;       // 0x28
     DvarValue latched;       // 0x40
     DvarValue reset;         // 0x58
-    DvarLimits domain;
-    dvar_t* hashNext;
+    DvarLimits domain;       // 0x70
+    dvar_t* hashNext;        // 0x80
+};
+
+struct score_t // 0x54 / 0x4
+{
+    int32_t ping;                // 0x0
+    int32_t status_icon;         // 0x4
+    int32_t place;               // 0x8
+    int32_t score;               // 0xC
+    int32_t kills;               // 0x10
+    int32_t assists;             // 0x14
+    int32_t deaths;              // 0x18
+    ub1 scoreboardColumns[3][9]; // 0x1C
+    int32_t downs;               // 0x40
+    int32_t revives;             // 0x44
+    int32_t headshots;           // 0x48
+    float scoreMultiplier;       // 0x4C
+    int32_t currentStreak;       // 0x50
 };
 
 struct centity_t // 0x808 / 0x8

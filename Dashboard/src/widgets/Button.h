@@ -28,7 +28,7 @@ public:
     void AnimateToOriginal(int acDuration = 500);
     [[nodiscard]] bool IsAnimating() const { return m_isBackgroundAnimating || m_isTextAnimating; }
 
-    explicit Button(const QString& text, QWidget* parent = nullptr);
+    explicit Button(const QString& acText, QWidget* acParent = nullptr);
 
 protected:
     void paintEvent(QPaintEvent* apEvent) override;

@@ -6,16 +6,17 @@ BrowseButton::BrowseButton(const QString& acText, QWidget* parent)
 {
     setParent(parent);
     setToolTip(acText);
+    setObjectName("BrowseButton");
     setCursor(Qt::PointingHandCursor);
     setIcon(QIcon(":/folder.ico"));
     setStyleSheet(R"(
-        QToolButton {
+        QToolButton#BrowseButton {
             border: none;
             padding: 4px;
             border-radius: 4px;
             background-color: none;
         }
-        QToolButton:hover {
+        QToolButton#BrowseButton:hover {
             background-color: #3c3c3c;
         }
     )");

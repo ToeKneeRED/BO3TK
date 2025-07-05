@@ -11,10 +11,11 @@ Button::Button(const QString& acText, QWidget* apParent)
     setFont(QFont("JetBrains Mono NL Semibold", 14));
     setCursor(Qt::PointingHandCursor);
     setFlat(true);
-
+    setAutoFillBackground(false);
+    setObjectName("Button");
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     setStyleSheet(R"(
-        QPushButton {
+        QPushButton#Button {
             background-color: #2c2c2c;
             color: #ffffff;
             border: none;
@@ -23,11 +24,11 @@ Button::Button(const QString& acText, QWidget* apParent)
             font-size: 14px;
             font-family: "Jetbrains Mono NL Semibold";
         }
-        QPushButton:hover {
+        QPushButton#Button:hover {
             background-color: #3c3c3c;
         }
-        QPushButton:pressed {
-            background-color: #1e1e1e;
+        QPushButton#Button:pressed {
+            background-color: #ffffff;
         }
     )");
 

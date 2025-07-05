@@ -1,7 +1,6 @@
 target("Dashboard")
-    set_kind("binary")
     set_languages("cxx23")
-    add_defines("_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING")
+    set_default(true)
 
     add_rules("qt.widgetapp", "qt.moc")
 
@@ -14,6 +13,7 @@ target("Dashboard")
     add_includedirs("include", "src/widgets")
 
     add_deps("Tools")
+    add_linkorders("Tools", "BO3TK")
 
     local game = get_config("game")
     if game then

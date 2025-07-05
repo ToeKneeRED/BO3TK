@@ -93,7 +93,9 @@ struct Log
 
     template <typename T, typename... Args> void Print(const T* acMsg, Args&&... aArgs) noexcept
     {
-        if constexpr (std::is_same_v<T, char> || std::is_same_v<T, int> || std::is_same_v<T, bool>)
+        if constexpr (
+            std::is_same_v<T, char> || std::is_same_v<T, int> || std::is_same_v<T, bool> ||
+            std::is_same_v<T, uintptr_t>)
         {
             LOG_OUTPUT("Log", Colors::Narrow::Print, NarrowText::Reset, acMsg, std::forward<Args>(aArgs)...);
         }
