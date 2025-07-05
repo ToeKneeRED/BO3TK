@@ -8,9 +8,13 @@
 #define PCH_H
 
 // add headers that you want to pre-compile here
-#include "framework.h"
+#include <windows.h>
 #include <windef.h>
 #include <iostream>
 #include <string>
+#include <stdlib.h>
+#include <malloc.h>
+#include <memory.h>
+#include <tchar.h>
 
 #endif // PCH_H

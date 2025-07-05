@@ -3,14 +3,14 @@ target("Dashboard")
     set_default(true)
 
     add_rules("qt.widgetapp", "qt.moc")
-
     add_packages("qt5widgets", "qt5gui", "qt5core", "qt5base")
 
-    add_files("src/*.cpp","src/widgets/*.cpp", "resources/*.qrc")
+    add_files("src/*.cpp","src/components/**.cpp", "resources/*.qrc")
     -- need to add_files qt-derived headers for moc to process
-    add_files("src/widgets/*.h")
-    add_headerfiles("include/*.h", "src/widgets/*.h")
-    add_includedirs("include", "src/widgets")
+    add_files("src/components/**.h")
+    add_headerfiles("include/*.h", "src/components/**.h")
+    add_includedirs("include")
+    add_recursive_includes("src/components")
 
     add_deps("Tools")
     add_linkorders("Tools", "BO3TK")

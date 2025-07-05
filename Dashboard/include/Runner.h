@@ -1,13 +1,17 @@
 #pragma once
-#include "framework.h"
 
 class Button;
 
+struct CommandLineArgs
+{
+    int Argc;
+    std::vector<char*> Argv;
+};
+
 namespace Runner
 {
+    static CommandLineArgs ParseCommandLine(LPWSTR apcCmdLine = nullptr);
 
-BOOL Inject(DWORD acProcessId, LPCSTR apDllPath);
-
-void CreateDashboardComponents();
-void OnLaunchButtonPress(Button* apButton);
+    void CreateDashboardComponents();
+    void OnLaunchButtonPress(Button* apButton = nullptr);
 } // namespace Runner

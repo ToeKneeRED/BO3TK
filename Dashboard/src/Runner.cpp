@@ -17,6 +17,7 @@
 #include <QPropertyAnimation>
 #include <QGraphicsOpacityEffect>
 
+#include "Injector.h"
 #include "NotificationManager.h"
 
 static CommandEvent* g_commandEventSender = nullptr;
@@ -24,101 +25,39 @@ static CommandEvent* g_commandEventSender = nullptr;
 // something broke and now it doesnt like wWinMain, so now main
 int main(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ const LPWSTR lpCmdLine, _In_ int)
 {
-    int argc;
-    LPWSTR* argvW = CommandLineToArgvW(lpCmdLine, &argc);
-
-    std::vector<std::string> narrowArgs;
-    std::vector<char*> argv;
-    for (int i = 0; i < argc; ++i)
-    {
-        if (const int cLen = WideCharToMultiByte(CP_UTF8, 0, argvW[i], -1, nullptr, 0, nullptr, nullptr); cLen > 0)
-        {
-            std::string narrow(cLen, '\0');
-            WideCharToMultiByte(CP_UTF8, 0, argvW[i], -1, narrow.data(), cLen, nullptr, nullptr);
-            narrowArgs.push_back(std::move(narrow));
-            argv.push_back(narrowArgs.back().data());
-        }
-    }
+    auto [argc, argv] = Runner::ParseCommandLine(lpCmdLine);
     Dashboard::Init(argc, argv.data());
-    LocalFree(argvW);
 
     Runner::CreateDashboardComponents();
 
     return Dashboard::Run();
 }
 
-BOOL Runner::Inject(const DWORD acProcessId, LPCSTR apDllPath)
+static CommandLineArgs Runner::ParseCommandLine(const LPWSTR apcCmdLine)
 {
-    if (acProcessId == 0 || !std::filesystem::exists(apDllPath))
-    {
-        Log::Get()->Error("{} does not exist or invalid process ID", apDllPath);
-        return FALSE;
-    }
+    CommandLineArgs cli{};
 
-    const HANDLE cProcess = OpenProcess(
-        PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
-        FALSE, acProcessId);
-    if (!cProcess)
-    {
-        char buf[256];
-        FormatMessageA(
-            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(),
-            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(char)), nullptr);
-        Log::Get()->Error("Failed to open process: {}", buf);
-        return FALSE;
-    }
+    LPWSTR* pArgvW = CommandLineToArgvW(apcCmdLine, &cli.Argc);
 
-    const HMODULE cKernel32 = GetModuleHandleA("kernel32.dll");
-    if (!cKernel32)
-    {
-        Log::Get()->Error("Failed to get kernel32.dll handle");
-        CloseHandle(cProcess);
-        return FALSE;
-    }
+    std::vector<std::string> narrowArgs;
+    narrowArgs.resize(cli.Argc);
 
-    const LPVOID cLoadLibraryAddr = reinterpret_cast<LPVOID>(GetProcAddress(cKernel32, "LoadLibraryA"));
-    if (!cLoadLibraryAddr)
+    for (int i = 0; i < cli.Argc; ++i)
     {
-        Log::Get()->Error("Failed to get LoadLibraryA address");
-        CloseHandle(cProcess);
-        return FALSE;
-    }
-
-    const SIZE_T cDllPathLen = strlen(apDllPath) + 1;
-    const LPVOID cRemoteString =
-        VirtualAllocEx(cProcess, nullptr, cDllPathLen, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    if (!cRemoteString)
-    {
-        Log::Get()->Error("VirtualAllocEx failed");
-        CloseHandle(cProcess);
-        return FALSE;
-    }
-
-    BOOL result = FALSE;
-    if (WriteProcessMemory(cProcess, cRemoteString, apDllPath, cDllPathLen, nullptr))
-    {
-        if (const HANDLE cRemoteThread = CreateRemoteThread(
-                cProcess, nullptr, 0, static_cast<LPTHREAD_START_ROUTINE>(cLoadLibraryAddr), cRemoteString, 0, nullptr))
+        if (const int cLen = WideCharToMultiByte(CP_UTF8, 0, pArgvW[i], -1, nullptr, 0, nullptr, nullptr); cLen > 0)
         {
-            WaitForSingleObject(cRemoteThread, INFINITE);
-            CloseHandle(cRemoteThread);
-            result = TRUE;
-        }
-        else
-        {
-            Log::Get()->Error("CreateRemoteThread failed");
+            std::string narrow(cLen, '\0');
+            WideCharToMultiByte(CP_UTF8, 0, pArgvW[i], -1, narrow.data(), cLen, nullptr, nullptr);
+            narrowArgs.push_back(std::move(narrow));
+            cli.Argv.push_back(narrowArgs.back().data());
         }
     }
-    else
-    {
-        Log::Get()->Error("WriteProcessMemory failed");
-    }
 
-    VirtualFreeEx(cProcess, cRemoteString, 0, MEM_RELEASE);
-    CloseHandle(cProcess);
+    LocalFree(pArgvW);
 
-    return result;
+    return cli;
 }
+
 
 void Runner::OnLaunchButtonPress(Button* apButton)
 {
@@ -128,7 +67,7 @@ void Runner::OnLaunchButtonPress(Button* apButton)
     if (const auto cPath = Dashboard::GamePath.c_str();
         CreateProcessA(cPath, nullptr, nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, nullptr, &sInfo, &pInfo))
     {
-        if (Runner::Inject(pInfo.dwProcessId, DLL_PATH))
+        if (Injector::Inject(pInfo.dwProcessId, DLL_PATH))
         {
             apButton->AnimateColors(QColor("#1e5e3d"), QColor("#e0f4e9"));
 

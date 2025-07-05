@@ -34,7 +34,7 @@ add_files("common/**.cpp")
 add_headerfiles("common/**.h")
 add_filegroups("common", {rootdir = "../common"})
 
-local function add_recursive_includes(dir)
+function add_recursive_includes(dir)
     add_includedirs(dir)
     local subdirs = os.dirs(dir .. "/*")
     for _, subdir in ipairs(subdirs) do
