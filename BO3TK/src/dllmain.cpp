@@ -3,21 +3,21 @@
 #include <d3d11.h>
 #include <tlhelp32.h>
 #include <Psapi.h>
-#include <bcrypt.h>
+#include <fstream>
 #include <windows.h>
 
 #include "Hooks.h"
 #include "Log.h"
 #include "ImGuiService.h"
-#include "CommandEvent.h"
-#include <Handler.h>
 
 #include "CommandDispatcher.h"
+#include <Event/EventHandler.h>
 
-#pragma comment(lib, "bcrypt.lib")
+#include "CommandEvent.h"
 
 auto* g_log = Log::Get();
 std::atomic g_stop = false;
+std::unordered_map<dvarStrHash_t, std::string> g_dvarHashMap{};
 
 typedef LONG(NTAPI* NtResumeThread_t)(HANDLE, PULONG);
 static void ResumeProcess(const DWORD acProcessId)
@@ -53,16 +53,6 @@ static void ResumeProcess(const DWORD acProcessId)
         } while (Thread32Next(cThreadSnap, &te32));
     }
     CloseHandle(cThreadSnap);
-}
-
-typedef int(WINAPI* MessageBoxA_t)(HWND, LPCSTR, LPCSTR, UINT);
-MessageBoxA_t OriginalMessageBoxA = nullptr;
-inline int WINAPI HookMessageBoxA(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT type)
-{
-    if (!strcmp(lpCaption, "Safe mode"))
-        return IDNO; // i am lazy
-
-    return OriginalMessageBoxA(hWnd, lpText, lpCaption, type);
 }
 
 static DWORD WINAPI MainThread(const std::atomic<bool>& acStop)
@@ -103,7 +93,8 @@ static DWORD WINAPI MainThread(const std::atomic<bool>& acStop)
         g_log->Print("{}Present hooked", NarrowText::Foreground::Green);
     }
 
-    LIB_HOOK("user32.dll", MessageBoxA, &HookMessageBoxA, &OriginalMessageBoxA)
+    LIB_HOOK("user32.dll", MessageBoxA, &Hooks::HookMessageBoxA, &Hooks::OriginalMessageBoxA)
+    FUNC_HOOK(0x220F4F0, Com_PrintMessage)
 }
 
 static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -132,48 +123,64 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
                 }
             })
             .detach();
-        /*std::thread([&]
+        std::thread([&]
         {
-            auto* eventHandler = new EventHandler<CommandEvent>{"BO3TK_dll"};
-            CommandDispatcher dispatcher;
+            const auto cEventHandler = new EventHandler("BO3TK_dll");
+            std::shared_ptr<CommandDispatcher> commandDispatcher = std::make_shared<CommandDispatcher>();
+            const std::string& cPrefix = commandDispatcher->GetPrefix();
 
-            eventHandler->Listen([&](const std::string& acData)
+            cEventHandler->AddCallback([&, commandDispatcher](CommandEvent::DataType acData)
             {
-                const std::string& cPrefix = dispatcher.Prefix;
                 if (acData.starts_with(cPrefix))
                 {
-                    const auto cStart = acData.find('(');
-                    const auto cEnd = acData.find(')');
+                    const std::string cNoPrefix = acData.starts_with(cPrefix) ? 
+                        acData.substr(cPrefix.length()) : acData;
+                    std::istringstream stream(cNoPrefix);
+                    CommandName commandName;
+                    stream >> commandName;
+                    std::ranges::transform(commandName, commandName.begin(),
+                          [](unsigned char c){ return std::tolower(c); });
 
-                    if (cStart == std::string::npos || cEnd == std::string::npos || cEnd <= cStart)
-                        return;
+                    CommandArgs args;
+                    std::string arg;
+                    while (stream >> arg)
+                        args.push_back(arg);
 
-                    const std::string cCommandName = acData.substr(cPrefix.size(), cStart - cPrefix.size());
-                    const std::string cArgString = acData.substr(cStart + 1, cEnd - cStart - 1);
+                    const auto* cpCommand = commandDispatcher->FindCommand(cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1));
+                    auto* command = commandDispatcher->StringToCommand(cNoPrefix);
 
-                    std::vector<std::string> args;
-                    std::stringstream ss(cArgString);
-                    std::string token;
-                    while (std::getline(ss, token, ',')) {
-                        token.erase(0, token.find_first_not_of(" \t"));
-                        token.erase(token.find_last_not_of(" \t") + 1);
-                        args.push_back(token);
-                    }
-
-                    Log::Get()->Print("{} {}", cCommandName.c_str(), cArgString.c_str());
-                    for (const auto& cArg : args)
+                    if (commandName == "addcommand")
                     {
-                        Log::Get()->Print("arg: {}", cArg.c_str());
+                        if (!cpCommand)
+                        {
+                            std::string newCommand = cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1);
+                            CommandArgs newArgs{newCommand.substr(newCommand.find_first_of(' ') + 1)};
+                            newCommand = newCommand.erase(newCommand.find_first_of(' '));
+                            Log::Get()->Print("AddCommand: {}", newCommand);
+                            commandDispatcher->AddCommand(new Command(newCommand, newArgs, CommandCallbacks()));
+                            commandDispatcher->AddCallback(newCommand, [&](const CommandArgs& acArgs)
+                            {
+                                for (const auto& cCmdArg : acArgs)
+                                {
+                                    Log::Get()->Print("arg: {}", cCmdArg.c_str());
+                                }
+                            });
+                        }
                     }
+                    else
+                    {
+                        std::string newCommand = cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1);
+                        CommandArgs newArgs{newCommand.substr(newCommand.find_first_of(' ') + 1)};
+                        newCommand = newCommand.erase(newCommand.find_first_of(' '));
 
-                    try {
-                        dispatcher.Execute(acData);
-                    } catch (const std::exception& cException) {
-                        Log::Get()->Error("Command execution failed: {}", cException.what());
+                        if (cpCommand)
+                            commandDispatcher->Call(newCommand, newArgs);
                     }
                 }
             });
-        }).detach();*/
+
+            cEventHandler->Start();
+        }).detach();
     }
     break;
     case DLL_THREAD_ATTACH:

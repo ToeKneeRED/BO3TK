@@ -1,6 +1,6 @@
 #include <filesystem>
 #include <windows.h>
-#include <shellapi.h> // <-- randomly broke and now requires windows.h immediately before ???
+#include <shellapi.h>
 
 #include "Runner.h"
 #include "Dashboard.h"
@@ -8,8 +8,11 @@
 #include "Button.h"
 #include "BrowseButton.h"
 #include "InputField.h"
+#include "EventHandler.h"
 #include "Event.h"
 #include "CommandEvent.h"
+#include "Injector.h"
+#include "NotificationManager.h"
 
 #include <QMenuBar>
 #include <QApplication>
@@ -17,18 +20,78 @@
 #include <QPropertyAnimation>
 #include <QGraphicsOpacityEffect>
 
-#include "Injector.h"
-#include "NotificationManager.h"
+#include "CommandDispatcher.h"
+
 
 static CommandEvent* g_commandEventSender = nullptr;
 
-// something broke and now it doesnt like wWinMain, so now main
+// i broke something and now it doesnt like wWinMain, so now main
 int main(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ const LPWSTR lpCmdLine, _In_ int)
 {
     auto [argc, argv] = Runner::ParseCommandLine(lpCmdLine);
     Dashboard::Init(argc, argv.data());
 
     Runner::CreateDashboardComponents();
+
+    //std::thread([&]
+    //    {
+    //        const auto cEventHandler = new EventHandler("BO3TK_dll");
+    //        std::shared_ptr<CommandDispatcher> commandDispatcher = std::make_shared<CommandDispatcher>();
+    //        const std::string& cPrefix = commandDispatcher->GetPrefix();
+
+    //        cEventHandler->AddCallback([&, commandDispatcher](CommandEvent::DataType acData)
+    //        {
+    //            if (acData.starts_with(cPrefix))
+    //            {
+    //                const std::string cNoPrefix = acData.starts_with(cPrefix) ? 
+    //                    acData.substr(cPrefix.length()) : acData;
+    //                std::istringstream stream(cNoPrefix);
+    //                CommandName commandName;
+    //                stream >> commandName;
+    //                std::ranges::transform(commandName, commandName.begin(),
+    //                      [](unsigned char c){ return std::tolower(c); });
+
+    //                CommandArgs args;
+    //                std::string arg;
+    //                while (stream >> arg)
+    //                    args.push_back(arg);
+
+    //                const auto* cpCommand = commandDispatcher->FindCommand(cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1));
+    //                auto* command = commandDispatcher->StringToCommand(cNoPrefix);
+
+    //                if (commandName == "addcommand")
+    //                {
+    //                    if (!cpCommand)
+    //                    {
+    //                        std::string newCommand = cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1);
+    //                        CommandArgs newArgs{newCommand.substr(newCommand.find_first_of(' ') + 1)};
+    //                        newCommand = newCommand.erase(newCommand.find_first_of(' '));
+    //                        Log::Get()->Print("AddCommand: {}", newCommand);
+    //                        commandDispatcher->AddCommand(new Command(newCommand, newArgs, CommandCallbacks()));
+    //                        commandDispatcher->AddCallback(newCommand, [&](const CommandArgs& acArgs)
+    //                        {
+    //                            for (const auto& cCmdArg : acArgs)
+    //                            {
+    //                                Log::Get()->Print("arg: {}", cCmdArg.c_str());
+    //                            }
+    //                        });
+    //                    }
+    //                }
+    //                else
+    //                {
+    //                    std::string newCommand = cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1);
+    //                    CommandArgs newArgs{newCommand.substr(newCommand.find_first_of(' ') + 1)};
+    //                    newCommand = newCommand.erase(newCommand.find_first_of(' '));
+
+    //                    if (cpCommand)
+    //                        commandDispatcher->Call(newCommand, newArgs);
+    //                        //CommandDispatcher::Call(cpCommand);
+    //                }
+    //            }
+    //        });
+
+    //        cEventHandler->Start();
+    //    }).detach();
 
     return Dashboard::Run();
 }
@@ -57,7 +120,6 @@ static CommandLineArgs Runner::ParseCommandLine(const LPWSTR apcCmdLine)
 
     return cli;
 }
-
 
 void Runner::OnLaunchButtonPress(Button* apButton)
 {
@@ -101,10 +163,7 @@ void Runner::OnLaunchButtonPress(Button* apButton)
                 })
                 .detach();
 
-            /*std::thread([&]
-            {
-                g_commandEventSender = new CommandEvent(IPC::Client, "BO3TK_dll");
-            }).detach();*/
+            std::thread([&] { g_commandEventSender = new CommandEvent(IPC::Client, "BO3TK_dll"); }).detach();
         }
         else
         {
@@ -295,9 +354,11 @@ void Runner::CreateDashboardComponents()
             {
                 const std::string cToSend = std::string(sendEventInputField->text().toUtf8().constData());
                 g_commandEventSender->Send(*new std::string(cToSend));
+
+                NotificationManager::ShowNotification(
+                    "Command sent: " + sendEventInputField->text(), Dashboard::Window);
             }
 
-            NotificationManager::ShowNotification("Command sent: " + sendEventInputField->text(), Dashboard::Window);
             sendEventInputField->setText("");
         });
     const QPointer cSendEventButton = Dashboard::CreateComponent<Button>("Send", Dashboard::Window);

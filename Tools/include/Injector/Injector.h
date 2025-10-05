@@ -14,7 +14,8 @@ struct Injector
         }
 
         const HANDLE cProcess = OpenProcess(
-            PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
+            PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE |
+                PROCESS_VM_READ,
             FALSE, acProcessId);
         if (!cProcess)
         {
@@ -56,7 +57,8 @@ struct Injector
         if (WriteProcessMemory(cProcess, cRemoteString, apDllPath, cDllPathLen, nullptr))
         {
             if (const HANDLE cRemoteThread = CreateRemoteThread(
-                    cProcess, nullptr, 0, static_cast<LPTHREAD_START_ROUTINE>(cLoadLibraryAddr), cRemoteString, 0, nullptr))
+                    cProcess, nullptr, 0, static_cast<LPTHREAD_START_ROUTINE>(cLoadLibraryAddr), cRemoteString, 0,
+                    nullptr))
             {
                 WaitForSingleObject(cRemoteThread, INFINITE);
                 CloseHandle(cRemoteThread);

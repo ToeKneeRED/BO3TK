@@ -4,6 +4,7 @@
 #include "ImGuiService.h"
 #include "Log.h"
 #include "MinHook.h"
+#include "structs.h"
 
 namespace Exe
 {
@@ -49,6 +50,10 @@ inline ImGuiService* g_imguiService = nullptr;
     {                                                                                      \
         Log::Get()->Print(L"{}Hook enabled: 0x{:X}", WideText::Foreground::Green, offset); \
     }
+
+#define FUNC_HOOK(offset, funcName)                             \
+    CREATE_HOOK(offset, Hooks::h##funcName, Hooks::o##funcName) \
+    ENABLE_HOOK(offset)
 
 #define LIB_HOOK(lib, function, detour, original)                                                \
     {                                                                                            \
@@ -139,6 +144,25 @@ static bool BindVTable(const uint16_t _index, void** _original, void* _function)
     }
 
     return true;
+}
+
+typedef int(WINAPI* MessageBoxA_t)(HWND, LPCSTR, LPCSTR, UINT);
+inline MessageBoxA_t OriginalMessageBoxA = nullptr;
+inline int WINAPI HookMessageBoxA(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT type)
+{
+    if (!strcmp(lpCaption, "Safe mode"))
+        return IDNO; // i am lazy
+
+    return OriginalMessageBoxA(hWnd, lpText, lpCaption, type);
+}
+
+typedef void(__fastcall* Com_PrintMessage_t)(int, consoleLabel_e, const char*, int);
+inline Com_PrintMessage_t oCom_PrintMessage = nullptr;
+inline void __fastcall hCom_PrintMessage(int channel, consoleLabel_e label, const char* msg, int error)
+{
+    Log::Get()->Print("[Com_PrintMessage] {}", msg);
+
+    return oCom_PrintMessage(channel, label, msg, error);
 }
 
 typedef HRESULT(__stdcall* Present_t)(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags);

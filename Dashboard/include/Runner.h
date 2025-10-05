@@ -10,8 +10,8 @@ struct CommandLineArgs
 
 namespace Runner
 {
-    static CommandLineArgs ParseCommandLine(LPWSTR apcCmdLine = nullptr);
+static CommandLineArgs ParseCommandLine(LPWSTR apcCmdLine = nullptr);
 
-    void CreateDashboardComponents();
-    void OnLaunchButtonPress(Button* apButton = nullptr);
+void CreateDashboardComponents();
+void OnLaunchButtonPress(Button* apButton = nullptr);
 } // namespace Runner

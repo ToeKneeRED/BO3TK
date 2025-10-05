@@ -2,7 +2,8 @@
 #include <qglobal.h>
 // old version of structs
 
-struct dvar_t;
+struct dvar_t; // DvarValue circular dependency ???
+
 typedef int16_t BoneIndex;
 typedef int16_t GridCoord;
 typedef int16_t i16;
@@ -18,6 +19,7 @@ typedef uint32_t GroupRank;
 typedef uint32_t GfxLabel;
 typedef uint32_t GfxPackedColor;
 typedef uint32_t contents_t;
+typedef uint32_t dvarStrHash_t;
 typedef int64_t i64;
 typedef uint64_t u64;
 typedef uint64_t EventParm_t;
@@ -1634,18 +1636,30 @@ union DvarValue // 0x18 / 0x8
 
 struct dvar_t // 0x88 / 0x8
 {
-    const char* name;        // 0x0
-    const char* description; // 0x8
-    u64 hash;                // 0x10
-    i32 flags;               // enum?, 0x18
-    dvarType_t type;         // 0x1C
-    ub1 modified;            // 0x20
-    ub1 pad_21[7];           // 0x21
-    DvarValue current;       // 0x28
-    DvarValue latched;       // 0x40
-    DvarValue reset;         // 0x58
-    DvarLimits domain;       // 0x70
-    dvar_t* hashNext;        // 0x80
+    // dvarStrHash_t* name;     // 0x0
+    // const char* debugName;   // newer?
+    // const char* description; // 0x8
+    // u64 hash;                // 0x10
+    // dvarFlags_e flags;       // 0x18
+    // dvarType_t type;         // 0x1C
+    // bool modified;           // 0x20
+    // ub1 pad_21[7];           // 0x21
+    // DvarValue current;       // 0x28
+    // DvarValue latched;       // 0x40
+    // DvarValue reset;         // 0x58
+    // DvarLimits domain;       // 0x70
+    // dvar_t* hashNext;        // 0x80
+    const char* name;
+    const char* description;
+    __int64 hash;
+    unsigned int flags;
+    dvarType_t type;
+    bool modified;
+    DvarValue current;
+    DvarValue latched;
+    DvarValue reset;
+    DvarLimits domain;
+    dvar_t* hashNext;
 };
 
 struct score_t // 0x54 / 0x4
@@ -1678,4 +1692,65 @@ struct centity_t // 0x808 / 0x8
     i32 numShotsFiredLast;     // 0x5B0
     ub1 pad_5B4[4];            // 0x5B4
     // TODO: here
+};
+
+struct gentity_t
+{
+    // model 0x280
+    // targetName 0x290
+};
+
+enum consoleLabel_e : uint32_t
+{
+    CON_LABEL_DEFAULT = 0,
+    CON_LABEL_TEMP = 1,
+    CON_LABEL_GFX = 2,
+    CON_LABEL_TASKMGR2 = 3,
+    CON_LABEL_LIVE = 4,
+    CON_LABEL_DEMONWARE = 5,
+    CON_LABEL_LEADERBOARDS = 6,
+    CON_LABEL_LOBBY = 7,
+    CON_LABEL_LOBBYHOST = 8,
+    CON_LABEL_LOBBYCLIENT = 9,
+    CON_LABEL_LOBBYVM = 0xA,
+    CON_LABEL_MIGRATION = 0xB,
+    CON_LABEL_INGAME_MIGRATION_HOST = 0xC,
+    CON_LABEL_INGAME_MIGRATION_CLIENT = 0xD,
+    CON_LABEL_SCRIPTER = 0xE,
+    CON_LABEL_VM = 0xF,
+    CON_LABEL_DVAR = 0x10,
+    CON_LABEL_TOOL = 0x11,
+    CON_LABEL_ANIM = 0x12,
+    CON_LABEL_NETCHAN = 0x13,
+    CON_LABEL_BG_CACHE = 0x14,
+    CON_LABEL_PM = 0x15,
+    CON_LABEL_MAPSWITCH = 0x16,
+    CON_LABEL_AI = 0x17,
+    CON_LABEL_GADGET = 0x18,
+    CON_LABEL_SOUND = 0x19,
+    CON_LABEL_SNAPSHOT = 0x1A,
+    PLAYGO = 0x1B,
+    CON_LABEL_LUI = 0x1C,
+    CON_LABEL_LUA = 0x1D,
+    CON_LABEL_VOICE = 0x1E,
+    CON_LABEL_DEMO = 0x1F,
+    CON_LABEL_DB = 0x20,
+    CON_LABEL_HTTP = 0x21,
+    CON_LABEL_COMPANION = 0x22,
+    CON_LABEL_MEM = 0x23,
+    CON_LABEL_CINEMATIC = 0x24,
+    CON_LABEL_DDL = 0x25,
+    CON_LABEL_STORAGE = 0x26,
+    CON_LABEL_STEAM = 0x27,
+    CON_LABEL_CHECKPOINT = 0x28,
+    CON_LABEL_THUNDERHEAD = 0x29,
+    CON_LABEL_COMSCORE = 0x2A,
+    CON_LABEL_COUNT = 0x2B
+};
+
+enum scriptInstance_t : int32_t
+{
+    SCRIPTINSTANCE_SERVER = 0,
+    SCRIPTINSTANCE_CLIENT = 1,
+    SCRIPTINSTANCE_MAX = 2
 };
