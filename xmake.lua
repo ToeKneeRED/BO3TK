@@ -41,7 +41,6 @@ function add_recursive_includes(dir)
         add_recursive_includes(subdir)
     end
 end
-
 add_recursive_includes("common")
 
 includes("Tools", "BO3TK", "Dashboard")

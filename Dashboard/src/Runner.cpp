@@ -10,7 +10,7 @@
 #include "InputField.h"
 #include "EventHandler.h"
 #include "Event.h"
-#include "CommandEvent.h"
+//#include "CommandEvent.h"
 #include "Injector.h"
 #include "NotificationManager.h"
 
@@ -19,11 +19,12 @@
 #include <QPointer>
 #include <QPropertyAnimation>
 #include <QGraphicsOpacityEffect>
+#include <QCheckbox>
 
 #include "CommandDispatcher.h"
+#include "HookEvent.h"
 
-
-static CommandEvent* g_commandEventSender = nullptr;
+static std::vector<FuncHook> g_hooks{};
 
 // i broke something and now it doesnt like wWinMain, so now main
 int main(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ const LPWSTR lpCmdLine, _In_ int)
@@ -31,67 +32,13 @@ int main(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ const LPWSTR lpCmdLine, _In_ i
     auto [argc, argv] = Runner::ParseCommandLine(lpCmdLine);
     Dashboard::Init(argc, argv.data());
 
+    std::thread([]()
+    {
+        Runner::g_eventHandler->Start();
+        Runner::g_eventHandler->RegisterEvent<HookEvent>();
+    }).detach();
+
     Runner::CreateDashboardComponents();
-
-    //std::thread([&]
-    //    {
-    //        const auto cEventHandler = new EventHandler("BO3TK_dll");
-    //        std::shared_ptr<CommandDispatcher> commandDispatcher = std::make_shared<CommandDispatcher>();
-    //        const std::string& cPrefix = commandDispatcher->GetPrefix();
-
-    //        cEventHandler->AddCallback([&, commandDispatcher](CommandEvent::DataType acData)
-    //        {
-    //            if (acData.starts_with(cPrefix))
-    //            {
-    //                const std::string cNoPrefix = acData.starts_with(cPrefix) ? 
-    //                    acData.substr(cPrefix.length()) : acData;
-    //                std::istringstream stream(cNoPrefix);
-    //                CommandName commandName;
-    //                stream >> commandName;
-    //                std::ranges::transform(commandName, commandName.begin(),
-    //                      [](unsigned char c){ return std::tolower(c); });
-
-    //                CommandArgs args;
-    //                std::string arg;
-    //                while (stream >> arg)
-    //                    args.push_back(arg);
-
-    //                const auto* cpCommand = commandDispatcher->FindCommand(cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1));
-    //                auto* command = commandDispatcher->StringToCommand(cNoPrefix);
-
-    //                if (commandName == "addcommand")
-    //                {
-    //                    if (!cpCommand)
-    //                    {
-    //                        std::string newCommand = cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1);
-    //                        CommandArgs newArgs{newCommand.substr(newCommand.find_first_of(' ') + 1)};
-    //                        newCommand = newCommand.erase(newCommand.find_first_of(' '));
-    //                        Log::Get()->Print("AddCommand: {}", newCommand);
-    //                        commandDispatcher->AddCommand(new Command(newCommand, newArgs, CommandCallbacks()));
-    //                        commandDispatcher->AddCallback(newCommand, [&](const CommandArgs& acArgs)
-    //                        {
-    //                            for (const auto& cCmdArg : acArgs)
-    //                            {
-    //                                Log::Get()->Print("arg: {}", cCmdArg.c_str());
-    //                            }
-    //                        });
-    //                    }
-    //                }
-    //                else
-    //                {
-    //                    std::string newCommand = cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1);
-    //                    CommandArgs newArgs{newCommand.substr(newCommand.find_first_of(' ') + 1)};
-    //                    newCommand = newCommand.erase(newCommand.find_first_of(' '));
-
-    //                    if (cpCommand)
-    //                        commandDispatcher->Call(newCommand, newArgs);
-    //                        //CommandDispatcher::Call(cpCommand);
-    //                }
-    //            }
-    //        });
-
-    //        cEventHandler->Start();
-    //    }).detach();
 
     return Dashboard::Run();
 }
@@ -162,8 +109,6 @@ void Runner::OnLaunchButtonPress(Button* apButton)
                     CloseHandle(hThread);
                 })
                 .detach();
-
-            std::thread([&] { g_commandEventSender = new CommandEvent(IPC::Client, "BO3TK_dll"); }).detach();
         }
         else
         {
@@ -220,7 +165,7 @@ void Runner::CreateDashboardComponents()
     const QPointer cLaunchButton = Dashboard::CreateComponent<Button>("BO3Enhanced", Dashboard::Window);
     cLaunchButton->OnPress += [=]
     {
-        Runner::OnLaunchButtonPress(cLaunchButton);
+        OnLaunchButtonPress(cLaunchButton);
     };
     Dashboard::Layout->addWidget(cLaunchButton);
 
@@ -316,6 +261,52 @@ void Runner::CreateDashboardComponents()
     Dashboard::Layout->addLayout(cRowLayout);
     Dashboard::Layout->addStretch();
 
+    const QPointer cHooksLabel = new QLabel("Function Hooks");
+    cHooksLabel->setStyleSheet("color: #ffffff");
+    cHooksLabel->setFont(QFont("Jetbrains Mono NL Semibold", 10));
+    cHooksLabel->setAlignment(Qt::AlignHCenter);
+
+    const QPointer cHooksLayout = new QVBoxLayout(Dashboard::Window);
+    cHooksLayout->addWidget(cHooksLabel);
+
+    for (FuncHook& hook : g_hooks)
+    {
+        QCheckBox* pCheckBox = new QCheckBox(QString::fromStdString(hook.Name), Dashboard::Window);
+        pCheckBox->setChecked(hook.Enabled);
+        pCheckBox->setStyleSheet("color: #ffffff;");
+
+        QObject::connect(pCheckBox, &QCheckBox::toggled, [&](bool aChecked)
+        {
+            hook.Enabled = aChecked;
+
+            if (aChecked)
+            {
+                //EnableHook(hook.Target);
+
+                if (g_eventHandler)
+                {
+                    std::unique_ptr<HookEvent> hookEvent { new HookEvent() };
+                    hookEvent->SetData(hook);
+
+                    //g_commandEventSender->Send(hookEvent);
+
+                    NotificationManager::ShowNotification(
+                        QString::fromStdString(hook.Name + " hook " + (hook.Enabled ? "enabled" : "disabled")),
+                        Dashboard::Window);
+                }
+            }
+            else
+            {
+                //DisableHook(hook.Target);
+            }
+
+            Dashboard::Settings->setValue(QString("HookEnabled_%1").arg(hook.Name.c_str()), aChecked);
+        });
+
+        cHooksLayout->addWidget(pCheckBox);
+    }
+    Dashboard::Layout->addLayout(cHooksLayout);
+
     const QPointer cSentEventsLayout = new QVBoxLayout(Dashboard::Window);
     Dashboard::Layout->addLayout(cSentEventsLayout);
 
@@ -350,14 +341,14 @@ void Runner::CreateDashboardComponents()
 
             QObject::connect(fadeAnim, &QPropertyAnimation::finished, cEventText, &QWidget::deleteLater);
 
-            if (g_commandEventSender)
+            /*if (g_commandEventSender)
             {
                 const std::string cToSend = std::string(sendEventInputField->text().toUtf8().constData());
                 g_commandEventSender->Send(*new std::string(cToSend));
 
                 NotificationManager::ShowNotification(
                     "Command sent: " + sendEventInputField->text(), Dashboard::Window);
-            }
+            }*/
 
             sendEventInputField->setText("");
         });

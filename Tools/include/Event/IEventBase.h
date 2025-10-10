@@ -1,12 +1,46 @@
 ﻿#pragma once
 #include <functional>
 
+// TODO: move to message-oriented event handling rather than client/server
 struct IEventBase
 {
-    IEventBase() = delete;
+    IEventBase() = default;
     explicit IEventBase(const std::string& acName)
         : m_name(R"(\\.\pipe\)" + acName)
     {
+        if (m_connected)
+            return;
+
+        m_pipe = CreateNamedPipeA(
+            m_name.c_str(),
+            PIPE_ACCESS_DUPLEX,
+            PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+            1, 1024, 1024, 0, nullptr);
+
+        if (m_pipe == INVALID_HANDLE_VALUE)
+        {
+            char buf[256];
+            FormatMessageA(
+                FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(),
+                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(char)), nullptr);
+            Log::Get()->Error("Failed to create named pipe {} {}", m_name.c_str(), buf);
+            return;
+        }
+
+        if (!ConnectNamedPipe(m_pipe, nullptr))
+        {
+            if (const DWORD cErr = GetLastError(); cErr == ERROR_PIPE_CONNECTED)
+            {
+                Log::Get()->Print("Connected");
+                m_connected = true;
+            }
+        }
+        else
+        {
+            m_connected = true;
+            Log::Get()->Print("Connected");
+        }
+
     }
     IEventBase(const IEventBase&) = default;
     IEventBase(IEventBase&&) = default;
@@ -25,41 +59,6 @@ struct IEventBase
     virtual bool Receive(const std::function<void(const void*)>&) = 0;
     [[nodiscard]] virtual const std::type_info& GetDataType() const = 0;
 
-    bool Create()
-    {
-        if (m_connected)
-            return false;
-
-        m_pipe = CreateNamedPipeA(
-            m_name.c_str(), PIPE_ACCESS_DUPLEX, PIPE_READMODE_MESSAGE | PIPE_TYPE_MESSAGE | PIPE_WAIT,
-            PIPE_UNLIMITED_INSTANCES, sizeof(*this), sizeof(*this), NMPWAIT_WAIT_FOREVER, nullptr);
-
-        if (m_pipe == INVALID_HANDLE_VALUE)
-        {
-            char buf[256];
-            FormatMessageA(
-                FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(),
-                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(char)), nullptr);
-            Log::Get()->Error("Failed to create named pipe {} {}", m_name.c_str(), buf);
-            return false;
-        }
-
-        if (!ConnectNamedPipe(m_pipe, nullptr))
-        {
-            if (const DWORD cErr = GetLastError(); cErr == ERROR_PIPE_CONNECTED)
-            {
-                Log::Get()->Print("Client connected early");
-                m_connected = true;
-            }
-        }
-        else
-        {
-            m_connected = true;
-            Log::Get()->Print("Server connected to pipe");
-        }
-
-        return true;
-    }
     virtual bool Open(const char* acPipeName)
     {
         Log::Get()->Print("Attempting to connect to pipe...");
@@ -110,6 +109,18 @@ struct IEventBase
         m_connected = true;
         Log::Get()->Print("Connected to pipe");
         return true;
+    }
+
+    bool WriteBuffer(const void* apData, size_t aSize)
+    {
+        DWORD written = 0;
+        return WriteFile(m_pipe, apData, (DWORD)aSize, &written, nullptr);
+    }
+
+    bool ReadBuffer(void* apData, size_t aSize)
+    {
+        DWORD read = 0;
+        return ReadFile(m_pipe, apData, (DWORD)aSize, &read, nullptr);
     }
 
     [[nodiscard]] const std::string& GetName() const { return m_name; }

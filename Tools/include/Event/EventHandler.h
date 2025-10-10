@@ -32,7 +32,7 @@ struct EventHandler
     template <typename Callback> void AddCallback(Callback&& aCallback)
     {
         using ArgType = FuncArgType<Callback>;
-        auto event = std::make_unique<Event<ArgType>>(IPC::Server, m_pipeName.c_str());
+        auto event = std::make_unique<Event<ArgType>>(m_pipeName.c_str());
 
         m_callbacks[typeid(ArgType)] = [callback = std::forward<Callback>(aCallback)](const void* acData)
         {
@@ -56,7 +56,7 @@ struct EventHandler
                         cEvent->Receive(iter->second);
                     }
                 }
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                std::this_thread::sleep_for(std::chrono::milliseconds(SleepDuration));
             }
         });
     }
@@ -68,6 +68,15 @@ struct EventHandler
         if (m_thread.joinable())
             m_thread.join();
     }
+
+    template <typename T>
+    void RegisterEvent()
+    {
+        auto event = std::make_unique<Event<T>>(m_pipeName.c_str());
+        m_events.push_back(std::move(event));
+    }
+
+    uint32_t SleepDuration = 250;
 
 private:
     std::string m_pipeName;

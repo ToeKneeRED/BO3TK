@@ -7,7 +7,7 @@ target("BO3TK")
     add_headerfiles("include/*.h")
     add_extrafiles("src/*.asm")
 
-    add_packages("minhook","qt5base", "qt5core", "qt5gui", "qt5widgets", "imgui")
+    add_packages("minhook", "xbyak", "qt5base", "qt5core", "qt5gui", "qt5widgets", "imgui")
 
     add_deps("Tools")
 

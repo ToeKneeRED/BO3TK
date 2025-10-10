@@ -1,4 +1,5 @@
 #pragma once
+#include "EventHandler.h"
 
 class Button;
 
@@ -14,4 +15,6 @@ static CommandLineArgs ParseCommandLine(LPWSTR apcCmdLine = nullptr);
 
 void CreateDashboardComponents();
 void OnLaunchButtonPress(Button* apButton = nullptr);
+
+inline std::unique_ptr<EventHandler> g_eventHandler{ new EventHandler("BO3TK_dll") };
 } // namespace Runner

@@ -10,10 +10,10 @@
 #include "Log.h"
 #include "ImGuiService.h"
 
-#include "CommandDispatcher.h"
+//#include "CommandDispatcher.h"
+//#include "CommandEvent.h"
 #include <Event/EventHandler.h>
 
-#include "CommandEvent.h"
 
 auto* g_log = Log::Get();
 std::atomic g_stop = false;
@@ -93,8 +93,16 @@ static DWORD WINAPI MainThread(const std::atomic<bool>& acStop)
         g_log->Print("{}Present hooked", NarrowText::Foreground::Green);
     }
 
-    LIB_HOOK("user32.dll", MessageBoxA, &Hooks::HookMessageBoxA, &Hooks::OriginalMessageBoxA)
-    FUNC_HOOK(0x220F4F0, Com_PrintMessage)
+    // safe mode
+    LIB_HOOK("user32.dll", MessageBoxA, &Hooks::hMessageBoxA, &Hooks::oMessageBoxA)
+    FUNC_HOOK(0x200BCC0, RegisterLuaEnums)
+    //FUNC_HOOK(0x2210B90, Com_Error)
+    //FUNC_HOOK(0x23ABA90, Dvar_SetFromStringByName)
+    //FUNC_HOOK(0x13DF170, Com_HashString)
+    //FUNC_HOOK(0x23B46F0, PLmemcpy)
+    //FUNC_HOOK(0x220F4F0, Com_PrintMessage)
+    //FUNC_HOOK(0x1E54EF0, lua_pcall)
+    //FUNC_HOOK(0x23A6870, Dvar_RegisterNew)
 }
 
 static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -118,12 +126,26 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
 
                         g_stop.store(true);
                     }
+                    else if (GetAsyncKeyState(VK_HOME) & 0x01)
+                    {
+                        Com_Error(ERROR_UI, "Something :)");
+                    }
 
                     std::this_thread::sleep_for(std::chrono::milliseconds(300));
                 }
             })
             .detach();
-        std::thread([&]
+        std::thread([&]()
+        {
+            while (!IsDebuggerPresent())
+            {
+                Sleep(100);
+            }
+            std::unique_ptr<EventHandler> eventHandler{ new EventHandler("BO3TK_dll") };
+            eventHandler->Start();
+            
+        }).detach();
+        /*std::thread([&]
         {
             const auto cEventHandler = new EventHandler("BO3TK_dll");
             std::shared_ptr<CommandDispatcher> commandDispatcher = std::make_shared<CommandDispatcher>();
@@ -180,7 +202,7 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
             });
 
             cEventHandler->Start();
-        }).detach();
+        }).detach();*/
     }
     break;
     case DLL_THREAD_ATTACH:

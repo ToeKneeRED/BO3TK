@@ -12,16 +12,8 @@ void Dashboard::Init(int32_t aArgc, char** apArgv)
     Window = new QWidget;
     Window->setObjectName("Window");
     Window->setWindowTitle("Dashboard");
-    Window->resize(900, 750);
+    Window->resize(500, 700);
     Window->setFocusPolicy(Qt::ClickFocus);
-    if (const QScreen* primaryScreen = QGuiApplication::primaryScreen())
-    {
-        const QRect& cScreenGeometry = primaryScreen->availableGeometry();
-        const int& cX = cScreenGeometry.x() + (cScreenGeometry.width() - Window->width()) / 2;
-        const int& cY = cScreenGeometry.y() + (cScreenGeometry.height() - Window->height()) / 2;
-
-        Window->move(cX, cY);
-    }
     Window->setStyleSheet(R"(
     QWidget#Window {
         background-color: #1e1e1e;

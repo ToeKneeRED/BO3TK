@@ -109,16 +109,16 @@ void ImGuiService::OnDraw() noexcept
     const int cBase = (m_inputString[0] == '0' && (m_inputString[1] == 'x' || m_inputString[1] == 'X')) ? 16 : 10;
 
     m_inputAddress = min(std::strtoull(m_inputString, nullptr, cBase), (uintptr_t)Exe::End);
-    m_watchAddress = ADDRESS(m_inputAddress);
+    m_watchAddress = OFFSET(m_inputAddress);
     ImGui::PopItemWidth();
 
     if (m_watchAddress)
     {
         ImGui::Text("%p: ", reinterpret_cast<void*>(m_watchAddress));
-        ImGui::Text("  uint64\t%u", *reinterpret_cast<uint64_t*>(ADDRESS(m_inputAddress)));
-        ImGui::Text("  float\t%f", *reinterpret_cast<float*>(ADDRESS(m_inputAddress)));
-        ImGui::Text("  const char\t%s", reinterpret_cast<const char*>(ADDRESS(m_inputAddress)));
-        ImGui::Text("  bool\t\t%s", *reinterpret_cast<bool*>(ADDRESS(m_inputAddress)) ? "true" : "false");
+        ImGui::Text("  uint64\t%u", *reinterpret_cast<uint64_t*>(OFFSET(m_inputAddress)));
+        ImGui::Text("  float\t%f", *reinterpret_cast<float*>(OFFSET(m_inputAddress)));
+        ImGui::Text("  const char\t%s", reinterpret_cast<const char*>(OFFSET(m_inputAddress)));
+        ImGui::Text("  bool\t\t%s", *reinterpret_cast<bool*>(OFFSET(m_inputAddress)) ? "true" : "false");
     }
 
     ImGui::End();
