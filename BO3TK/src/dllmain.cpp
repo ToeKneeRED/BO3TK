@@ -14,6 +14,8 @@
 //#include "CommandEvent.h"
 #include <Event/EventHandler.h>
 
+#include "HookEvent.h"
+
 
 auto* g_log = Log::Get();
 std::atomic g_stop = false;
@@ -97,12 +99,15 @@ static DWORD WINAPI MainThread(const std::atomic<bool>& acStop)
     LIB_HOOK("user32.dll", MessageBoxA, &Hooks::hMessageBoxA, &Hooks::oMessageBoxA)
     FUNC_HOOK(0x200BCC0, RegisterLuaEnums)
     //FUNC_HOOK(0x2210B90, Com_Error)
-    //FUNC_HOOK(0x23ABA90, Dvar_SetFromStringByName)
+    FUNC_HOOK(0x23ABA90, Dvar_SetFromStringByName)
     //FUNC_HOOK(0x13DF170, Com_HashString)
-    //FUNC_HOOK(0x23B46F0, PLmemcpy)
-    //FUNC_HOOK(0x220F4F0, Com_PrintMessage)
+    FUNC_HOOK(0x23B46F0, PLmemcpy)
+    FUNC_HOOK(0x220F4F0, Com_PrintMessage)
     //FUNC_HOOK(0x1E54EF0, lua_pcall)
-    //FUNC_HOOK(0x23A6870, Dvar_RegisterNew)
+    FUNC_HOOK(0x23A6870, Dvar_RegisterNew)
+    //MH_EnableHook(nullptr);
+
+    return 0;
 }
 
 static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -129,6 +134,7 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
                     else if (GetAsyncKeyState(VK_HOME) & 0x01)
                     {
                         Com_Error(ERROR_UI, "Something :)");
+                        //Hooks::oCom_Error("", 0, ERROR_UI, "Something :)");
                     }
 
                     std::this_thread::sleep_for(std::chrono::milliseconds(300));
@@ -137,72 +143,15 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
             .detach();
         std::thread([&]()
         {
-            while (!IsDebuggerPresent())
-            {
-                Sleep(100);
-            }
             std::unique_ptr<EventHandler> eventHandler{ new EventHandler("BO3TK_dll") };
-            eventHandler->Start();
-            
-        }).detach();
-        /*std::thread([&]
-        {
-            const auto cEventHandler = new EventHandler("BO3TK_dll");
-            std::shared_ptr<CommandDispatcher> commandDispatcher = std::make_shared<CommandDispatcher>();
-            const std::string& cPrefix = commandDispatcher->GetPrefix();
 
-            cEventHandler->AddCallback([&, commandDispatcher](CommandEvent::DataType acData)
+            eventHandler->RegisterEvent<HookEvent>([](const HookEvent& acEvent)
             {
-                if (acData.starts_with(cPrefix))
-                {
-                    const std::string cNoPrefix = acData.starts_with(cPrefix) ? 
-                        acData.substr(cPrefix.length()) : acData;
-                    std::istringstream stream(cNoPrefix);
-                    CommandName commandName;
-                    stream >> commandName;
-                    std::ranges::transform(commandName, commandName.begin(),
-                          [](unsigned char c){ return std::tolower(c); });
-
-                    CommandArgs args;
-                    std::string arg;
-                    while (stream >> arg)
-                        args.push_back(arg);
-
-                    const auto* cpCommand = commandDispatcher->FindCommand(cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1));
-                    auto* command = commandDispatcher->StringToCommand(cNoPrefix);
-
-                    if (commandName == "addcommand")
-                    {
-                        if (!cpCommand)
-                        {
-                            std::string newCommand = cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1);
-                            CommandArgs newArgs{newCommand.substr(newCommand.find_first_of(' ') + 1)};
-                            newCommand = newCommand.erase(newCommand.find_first_of(' '));
-                            Log::Get()->Print("AddCommand: {}", newCommand);
-                            commandDispatcher->AddCommand(new Command(newCommand, newArgs, CommandCallbacks()));
-                            commandDispatcher->AddCallback(newCommand, [&](const CommandArgs& acArgs)
-                            {
-                                for (const auto& cCmdArg : acArgs)
-                                {
-                                    Log::Get()->Print("arg: {}", cCmdArg.c_str());
-                                }
-                            });
-                        }
-                    }
-                    else
-                    {
-                        std::string newCommand = cNoPrefix.substr(cNoPrefix.find_first_of(' ') + 1);
-                        CommandArgs newArgs{newCommand.substr(newCommand.find_first_of(' ') + 1)};
-                        newCommand = newCommand.erase(newCommand.find_first_of(' '));
-
-                        if (cpCommand)
-                            commandDispatcher->Call(newCommand, newArgs);
-                    }
-                }
+                auto data = static_cast<const FuncHook*>(acEvent.GetData());
+                Log::Get()->Print("[HookEvent] {}: {}", data->Name, data->Enabled);
             });
-
-            cEventHandler->Start();
-        }).detach();*/
+            eventHandler->Start();
+        }).detach();
     }
     break;
     case DLL_THREAD_ATTACH:

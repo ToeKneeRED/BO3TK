@@ -4,7 +4,7 @@ InputField::InputField(const QString& acText, QWidget* apParent)
 {
     setText(acText);
     setParent(apParent);
-    setMinimumWidth(600);
+    setMinimumWidth(400);
     setStyleSheet(R"(
         QLineEdit {
             background-color: #2c2c2c;

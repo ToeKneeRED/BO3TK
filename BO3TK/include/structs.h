@@ -2,7 +2,35 @@
 #include <qglobal.h>
 // old version of structs
 
-struct dvar_t; // DvarValue circular dependency ???
+struct gscProfileInfo_t;
+struct Object;
+struct HashTable;
+struct lua_State;
+struct lua_Debug;
+struct dvar_t;
+struct RuntimeProfileData{};
+struct MemoryManager{};
+struct DebugHook{};
+struct DebugInstance{};
+struct ApiStack{};
+struct CallStack{};
+struct CallSite{};
+struct cclosure{};
+struct UserData{};
+struct StructInst{};
+struct StringPinner{};
+struct Metatable{};
+struct StaticStringCache{};
+struct UpValue{};
+struct Method{};
+struct ResumeData_Header{};
+struct ResumeData_State{};
+struct ResumeData_Table{};
+struct ResumeData_Closure{};
+struct ResumeData_CClosure{};
+struct ResumeData_Userdata{};
+union ResumeData_Entry{};
+struct GarbageCollector{};
 
 typedef int16_t BoneIndex;
 typedef int16_t GridCoord;
@@ -20,6 +48,8 @@ typedef uint32_t GfxLabel;
 typedef uint32_t GfxPackedColor;
 typedef uint32_t contents_t;
 typedef uint32_t dvarStrHash_t;
+typedef uint32_t ScrString_t;
+typedef uint32_t ScrVarIndex_t;
 typedef int64_t i64;
 typedef uint64_t u64;
 typedef uint64_t EventParm_t;
@@ -27,6 +57,7 @@ typedef uint64_t ClanID;
 typedef uint64_t AttachmentMask;
 typedef uint64_t bitfield_t;
 typedef uint64_t EventParm_t;
+typedef uint64_t XUID;
 typedef char com_devhost_byte;
 typedef char str32_t[32];
 typedef char str64_t[64];
@@ -39,6 +70,15 @@ typedef int flag_t;
 typedef int binmap_t;
 typedef int bindex_t;
 typedef int GameTypeId_t;
+typedef int32_t(*debug_map)(const char*, int32_t);
+typedef int32_t(*lua_CFunction)(void*);
+typedef void(*lua_Hook)(lua_State*, lua_Debug*);
+int identity_map(const char* filename, int lua_line);
+typedef void (*LogFunc)(lua_State*, const char*, ...);
+typedef void (*EmergencyGCFailFunc)(lua_State*, size_t);
+typedef CallSite* ErrorHandler;
+typedef int GcCost;
+typedef Object Register;
 
 enum ClientNum_t : int32_t /*int8_t*/
 {
@@ -1601,6 +1641,7 @@ enum dvarType_t : i32
 union DvarLimits // 0x10 / 0x8
 {
     // TODO: here
+    uint8_t padding[16];
 };
 
 enum dvarFlags_e
@@ -1620,6 +1661,14 @@ enum dvarFlags_e
     DVAR_SESSIONMODE = 1 << 15
 };
 
+enum DvarSetSource : __int32
+{
+  DVAR_SOURCE_INTERNAL = 0x0,
+  DVAR_SOURCE_EXTERNAL = 0x1,
+  DVAR_SOURCE_SCRIPT = 0x2,
+  DVAR_SOURCE_DEVGUI = 0x3,
+};
+
 union DvarValue // 0x18 / 0x8
 {
     ub1 enabled;
@@ -1634,33 +1683,23 @@ union DvarValue // 0x18 / 0x8
     const dvar_t* indirect[3]; // ???
 };
 
-struct dvar_t // 0x88 / 0x8
+struct dvar_t // 0xA0 / 0x8
 {
-    // dvarStrHash_t* name;     // 0x0
-    // const char* debugName;   // newer?
-    // const char* description; // 0x8
-    // u64 hash;                // 0x10
-    // dvarFlags_e flags;       // 0x18
-    // dvarType_t type;         // 0x1C
-    // bool modified;           // 0x20
-    // ub1 pad_21[7];           // 0x21
-    // DvarValue current;       // 0x28
-    // DvarValue latched;       // 0x40
-    // DvarValue reset;         // 0x58
-    // DvarLimits domain;       // 0x70
-    // dvar_t* hashNext;        // 0x80
-    const char* name;
+    dvarStrHash_t* name;
     const char* description;
-    __int64 hash;
-    unsigned int flags;
-    dvarType_t type;
-    bool modified;
-    DvarValue current;
+    int64_t hash;
+    dvarFlags_e flags; // 0x18
+    dvarType_t type; // 0x1C
+    bool modified; // 0x20
+    DvarValue current; // 0x28
     DvarValue latched;
     DvarValue reset;
+    DvarValue unk; // ????
     DvarLimits domain;
-    dvar_t* hashNext;
+    dvar_t* hashNext; // 0x98
 };
+
+static_assert(sizeof(dvar_t) == 0xA0);
 
 struct score_t // 0x54 / 0x4
 {
@@ -1753,4 +1792,1166 @@ enum scriptInstance_t : int32_t
     SCRIPTINSTANCE_SERVER = 0,
     SCRIPTINSTANCE_CLIENT = 1,
     SCRIPTINSTANCE_MAX = 2
+};
+
+struct _jmp_buf;
+struct hksInstruction;
+struct lua_Debug;
+struct lua_State;
+struct LUIPoolUserData;
+struct OpenedMenuData;
+struct HksObject;
+struct luaL_Reg;
+struct HksCompilerSettings;
+
+union HksValue;
+
+namespace hks
+{
+	struct RuntimeProfileData;
+	struct MemoryManager;
+	struct DebugHook;
+	struct DebugInstance;
+	struct HksGlobal;
+	struct ApiStack;
+	struct CallStack;
+	struct CallSite;
+	struct cclosure;
+	struct HksClosure;
+	struct HashTable;
+	struct UserData;
+	struct StructInst;
+	struct InternString;
+	struct StringPinner;
+	struct StringTable;
+	struct Metatable;
+	struct StaticStringCache;
+	struct UpValue;
+	struct Method;
+	struct HksGcWeights;
+	struct ResumeData_Header;
+	struct ResumeData_State;
+	struct ResumeData_Table;
+	struct ResumeData_Closure;
+	struct ResumeData_CClosure;
+	struct ResumeData_Userdata;
+	union ResumeData_Entry;
+	struct GarbageCollector;
+}
+
+typedef int32_t hksBool;
+typedef char hksChar;
+typedef uint8_t hksByte;
+typedef int16_t hksShort16;
+typedef uint16_t hksUshort16;
+typedef float HksNumber;
+typedef int32_t hksInt32;
+typedef uint32_t hksUint32;
+typedef int64_t hksInt64;
+typedef uint64_t hksUint64;
+typedef size_t hksSize;
+typedef int32_t ErrorCode;
+
+enum HksError : hksInt32
+{
+	HKS_NO_ERROR = 0x0,
+	LUA_ERRSYNTAX = -1,
+	LUA_ERRFILE = -2,
+	LUA_ERRRUN = -3,
+	LUA_ERRMEM = -4,
+	LUA_ERRERR = -5,
+	HKS_THROWING_ERROR = -6,
+	HKS_GC_YIELD = 0x1,
+};
+
+enum HksBytecodeEndianness : hksInt32
+{
+	HKS_BYTECODE_DEFAULT_ENDIAN = 0x0,
+	HKS_BYTECODE_BIG_ENDIAN = 0x1,
+	HKS_BYTECODE_LITTLE_ENDIAN = 0x2,
+};
+
+enum HksBytecodeSharingMode : hksInt64
+{
+	HKS_BYTECODE_SHARING_OFF = 0,
+	HKS_BYTECODE_SHARING_ON = 1,
+	HKS_BYTECODE_SHARING_SECURE = 2
+};
+
+enum HksObjectType : hksInt32
+{
+	TANY = -2,
+	TNONE = -1,
+	TNIL = 0x0,
+	TBOOLEAN = 0x1,
+	TLIGHTUSERDATA = 0x2,
+	TNUMBER = 0x3,
+	TSTRING = 0x4,
+	TTABLE = 0x5,
+	TFUNCTION = 0x6,
+	TUSERDATA = 0x7,
+	TTHREAD = 0x8,
+	TIFUNCTION = 0x9,
+	TCFUNCTION = 0xA,
+	TUI64 = 0xB,
+	TSTRUCT = 0xC,
+	NUM_TYPE_OBJECTS = 0xE,
+};
+
+typedef hksUint32 hksBytecodeInstruction;
+typedef hksUint32 HksNativeValueAsInt;
+typedef HksObject HksRegister;
+typedef void* (*lua_Alloc)(void*, void*, hksSize, hksSize);
+typedef hksInt32(*hks_debug_map)(const char*, hksInt32);
+typedef hksInt32(*lua_CFunction)(void*);
+typedef void (*lua_Hook)(lua_State*, lua_Debug*);
+
+namespace hks
+{
+    typedef void (*HksLogFunc)(lua_State*, const char*, ...);
+    typedef void (*HksEmergencyGCFailFunc)(lua_State*, size_t);
+    typedef CallSite* ErrorHandler;
+    typedef int HksGcCost;
+}
+
+namespace hks
+{
+    struct GenericChunkHeader
+    {
+	    hksSize m_flags;
+    };
+
+    struct ChunkHeader : GenericChunkHeader
+    {
+	    ChunkHeader* m_next;
+    };
+
+    struct ChunkList
+    {
+	    ChunkHeader m_head;
+    };
+}
+
+struct _jmp_buf
+{
+	void* _jb[12];
+};
+
+struct hksInstruction
+{
+	hksBytecodeInstruction code;
+};
+
+struct lua_Debug
+{
+	hksInt32 event;
+	const char* name;
+	const char* namewhat;
+	const char* what;
+	const char* source;
+	hksInt32 currentline;
+	hksInt32 nups;
+	hksInt32 nparams;
+	hksBool ishksfunc;
+	hksInt32 linedefined;
+	hksInt32 lastlinedefined;
+	char short_src[512];
+	hksInt32 callstack_level;
+	hksBool is_tail_call;
+};
+
+struct LUIPoolUserData
+{
+	hksUshort16 poolIndex;
+	hksUshort16 iteration;
+};
+
+struct OpenedMenuData
+{
+	hksInt32 nameHash;
+	LUIPoolUserData menuElementPoolData;
+	char name[32];
+};
+
+union HksValue
+{
+	hks::cclosure* cClosure;
+	hks::HksClosure* closure;
+	hks::UserData* userData;
+	hks::HashTable* table;
+	hks::StructInst* tstruct;
+	hks::InternString* str;
+	lua_State* thread;
+	void* ptr;
+	HksNumber number;
+	HksNativeValueAsInt native;
+	hksInt32 boolean;
+};
+
+struct HksObject
+{
+	hksUint32 t;
+	HksValue v;
+};
+
+struct luaL_Reg
+{
+	const char* name;
+	lua_CFunction func;
+};
+
+int hks_identity_map(const char* filename, int lua_line);
+
+struct HksCompilerSettings
+{
+	enum BytecodeSharingFormat : hksInt32
+	{
+		BYTECODE_DEFAULT = 0x0,
+		BYTECODE_INPLACE = 0x1,
+		BYTECODE_REFERENCED = 0x2,
+	};
+
+
+	enum IntLiteralOptions : hksInt32
+	{
+		INT_LITERALS_NONE = 0x0,
+		INT_LITERALS_LUD = 0x1,
+		INT_LITERALS_32BIT = 0x1,
+		INT_LITERALS_UI64 = 0x2,
+		INT_LITERALS_64BIT = 0x2,
+		INT_LITERALS_ALL = 0x3,
+	};
+
+	hksBool m_emitStructCode = 0;
+	hksInt32 padding;
+	const hksChar** m_stripNames = 0;
+	BytecodeSharingFormat m_bytecodeSharingFormat = BYTECODE_INPLACE;
+	IntLiteralOptions m_enableIntLiterals = INT_LITERALS_NONE;
+
+	hks_debug_map m_debugMap = hks_identity_map;
+};
+
+namespace hks
+{
+    enum GCResumePhase : hksInt32
+    {
+	GC_STATE_MARKING_UPVALUES = 0x0,
+	GC_STATE_MARKING_GLOBAL_TABLE = 0x1,
+	GC_STATE_MARKING_REGISTRY = 0x2,
+	GC_STATE_MARKING_PROTOTYPES = 0x3,
+	GC_STATE_MARKING_SCRIPT_PROFILER = 0x4,
+	GC_STATE_MARKING_FINALIZER_STATE = 0x5,
+	GC_TABLE_MARKING_ARRAY = 0x6,
+	GC_TABLE_MARKING_HASH = 0x7,
+    };
+
+    struct ResumeData_Header
+    {
+	HksObjectType m_type;
+    };
+
+    struct ResumeData_State
+    {
+	ResumeData_Header h;
+	int padding;
+	lua_State* m_state;
+	GCResumePhase m_phase;
+	int padding2;
+	UpValue* m_pending;
+    };
+
+    struct ResumeData_Table
+    {
+	ResumeData_Header h;
+	int padding;
+	HashTable* m_table;
+	hksUint32 m_arrayIndex;
+	hksUint32 m_hashIndex;
+	hksInt32 m_weakness;
+	int padding2;
+    };
+
+    struct ResumeData_Closure
+    {
+	ResumeData_Header h;
+	int padding;
+	HksClosure* m_closure;
+	hksInt32 m_index;
+	int padding2;
+    };
+
+    struct ResumeData_CClosure
+    {
+	ResumeData_Header h;
+	int padding;
+	cclosure* m_cclosure;
+	hksInt32 m_upvalueIndex;
+	int padding2;
+    };
+
+    struct ResumeData_Userdata
+    {
+	ResumeData_Header h;
+	int padding;
+	UserData* m_data;
+    };
+
+    union ResumeData_Entry
+    {
+	ResumeData_State State;
+	ResumeData_Table HashTable;
+	ResumeData_Closure Closure;
+	ResumeData_CClosure CClosure;
+	ResumeData_Userdata Userdata;
+    };
+
+    struct HksGcWeights
+    {
+	HksGcCost m_removeString;
+	HksGcCost m_finalizeUserdataNoMM;
+	HksGcCost m_finalizeUserdataGcMM;
+	HksGcCost m_cleanCoroutine;
+	HksGcCost m_removeWeak;
+	HksGcCost m_markObject;
+	HksGcCost m_traverseString;
+	HksGcCost m_traverseUserdata;
+	HksGcCost m_traverseCoroutine;
+	HksGcCost m_traverseWeakTable;
+	HksGcCost m_freeChunk;
+	HksGcCost m_sweepTraverse;
+    };
+
+    struct Method : ChunkHeader
+    {
+	struct hksInstructionArray
+	{
+		hksUint32 size;
+		const hksInstruction* data;
+	};
+
+	struct HksObjectArray
+	{
+		hksUint32 size;
+		HksObject* data;
+	};
+
+	struct MethodArray
+	{
+		hksUint32 size;
+		Method** data;
+	};
+
+	struct LocalInfo
+	{
+		InternString* name;
+		hksInt32 start_pc;
+		hksInt32 end_pc;
+	};
+
+	struct hksUint32Array
+	{
+		hksUint32 size;
+		hksUint32* data;
+	};
+
+	struct LocalInfoArray
+	{
+		hksUint32 size;
+		LocalInfo* data;
+	};
+
+	struct InternStringArray
+	{
+		hksUint32 size;
+		InternString** data;
+	};
+
+	typedef hksInstructionArray Instructions;
+	typedef HksObjectArray Constants;
+	typedef MethodArray Children;
+	typedef LocalInfoArray Locals;
+	typedef hksUint32Array LineInfo;
+	typedef InternStringArray UpValueInfo;
+
+	struct DebugInfo
+	{
+		hksUint32 line_defined;
+		hksUint32 last_line_defined;
+		LineInfo lineInfo;
+		UpValueInfo upvalInfo;
+		InternString* source;
+		InternString* name;
+		Locals localInfo;
+	};
+
+	hksUint32 hash;
+	hksUshort16 num_upvals;
+	hksUshort16 m_numRegisters;
+	hksByte num_params;
+	hksByte m_flags;
+	Instructions instructions;
+	Constants constants;
+	Children children;
+	DebugInfo* m_debug;
+    };
+
+    struct UpValue : ChunkHeader
+    {
+	HksObject m_storage;
+	HksObject* loc;
+	UpValue* m_next;
+    };
+
+    struct cclosure : ChunkHeader
+    {
+	lua_CFunction m_function;
+	HashTable* m_env;
+	hksShort16 m_numUpvalues;
+	hksShort16 m_flags;
+	InternString* m_name;
+	HksObject m_upvalues[1];
+    };
+
+    struct UserData : ChunkHeader
+    {
+	HashTable* m_env;
+	Metatable* m_meta;
+	char m_data[8];
+    };
+
+    struct StaticStringCache
+    {
+	HksObject m_objects[42];
+    };
+
+    struct HashTable : ChunkHeader
+    {
+	struct Node
+	{
+		HksRegister m_key;
+		HksRegister m_value;
+	};
+
+	Metatable* m_meta;
+	hksUint32 m_mask;
+	Node* m_hashPart;
+	HksRegister* m_arrayPart;
+	hksUint32 m_arraySize;
+	Node* m_freeNode;
+    };
+
+    struct Metatable
+    {
+	__int8 gap0[1];
+    };
+
+    struct InternString : GenericChunkHeader
+    {
+	hksSize m_lengthbits;
+	hksUint32 m_hash;
+	char m_data[30];
+	char padding[6];
+    };
+
+    struct StringTable
+    {
+	InternString** m_data;
+	hksUint32 m_count;
+	hksUint32 m_mask;
+	StringPinner* m_pinnedStrings;
+    };
+
+    struct StringPinner
+    {
+	struct Node
+	{
+		InternString* m_strings[32];
+		Node* m_prev;
+	};
+
+	lua_State* const m_state;
+	StringPinner* const m_prev;
+	InternString** m_nextStringsPlace;
+	Node m_firstNode;
+	Node* m_currentNode;
+    };
+
+    struct CallSite
+    {
+	_jmp_buf m_jumpBuffer;
+	CallSite* m_prev;
+    };
+
+    struct CallStack
+    {
+	struct ActivationRecord
+	{
+	    HksObject* m_base;
+	    const hksInstruction* m_returnAddress;
+	    hksShort16 m_tailCallDepth;
+	    hksShort16 m_numVarargs;
+	    hksInt32 m_numExpectedReturns;
+	};
+
+	ActivationRecord* m_records;
+	ActivationRecord* m_lastrecord;
+	ActivationRecord* m_current;
+	const hksInstruction* m_current_lua_pc;
+	const hksInstruction* m_hook_return_addr;
+	hksInt32 m_hook_level;
+	hksInt32 padding;
+    };
+
+    struct ApiStack
+    {
+	HksObject* top;
+	HksObject* base;
+	HksObject* alloc_top;
+	HksObject* bottom;
+    };
+
+    struct MemoryManager
+    {
+	enum ChunkColor : hksInt32
+	{
+		WHITE = 0x0,
+		BLACK = 0x1,
+	};
+
+	lua_Alloc m_allocator;
+	void* m_allocatorUd;
+	ChunkColor m_chunkColor;
+	hksSize m_used;
+	hksSize m_highwatermark;
+	ChunkList m_allocationList;
+	ChunkList m_sweepList;
+	ChunkHeader* m_lastKeptChunk;
+	lua_State* m_state;
+    };
+
+    struct GarbageCollector
+    {
+	struct ResumeStack
+	{
+	    ResumeData_Entry* m_storage;
+	    hksInt32 m_numEntries;
+	    hksUint32 m_numAllocated;
+	};
+
+	struct GreyStack
+	{
+	    HksObject* m_storage;
+	    hksSize m_numEntries;
+	    hksSize m_numAllocated;
+	};
+
+	struct RemarkStack
+	{
+	    HashTable** m_storage;
+	    hksSize m_numAllocated;
+	    hksSize m_numEntries;
+	};
+
+	struct WeakStack_Entry
+	{
+	    hksInt32 m_weakness;
+	    HashTable* m_table;
+	};
+
+	struct WeakStack
+	{
+	    WeakStack_Entry* m_storage;
+	    hksInt32 m_numEntries;
+	    hksUint32 m_numAllocated;
+	};
+
+	HksGcCost m_target;
+	HksGcCost m_stepsLeft;
+	HksGcCost m_stepLimit;
+	HksGcWeights m_costs;
+	HksGcCost m_unit;
+	_jmp_buf* m_jumpPoint;
+	lua_State* m_mainState;
+	lua_State* m_finalizerState;
+	MemoryManager* m_memory;
+	void* m_emergencyGCMemory;
+	hksInt32 m_phase;
+	ResumeStack m_resumeStack;
+	GreyStack m_greyStack;
+	RemarkStack m_remarkStack;
+	WeakStack m_weakStack;
+	hksBool m_finalizing;
+	HksObject m_safeTableValue;
+	lua_State* m_startOfStateStackList;
+	lua_State* m_endOfStateStackList;
+	lua_State* m_currentState;
+	HksObject m_safeValue;
+	void* m_compiler;
+	void* m_bytecodeReader;
+	void* m_bytecodeWriter;
+	hksInt32 m_pauseMultiplier;
+	HksGcCost m_stepMultiplier;
+	hksSize m_emergencyMemorySize;
+	bool m_stopped;
+	lua_CFunction m_gcPolicy;
+	hksSize m_pauseTriggerMemoryUsage;
+	hksInt32 m_stepTriggerCountdown;
+	hksUint32 m_stringTableIndex;
+	hksUint32 m_stringTableSize;
+	UserData* m_lastBlackUD;
+	UserData* m_activeUD;
+    };
+
+    struct RuntimeProfileData
+    {
+	struct Stats
+	{
+	    hksUint64 hksTime;
+	    hksUint64 callbackTime;
+	    hksUint64 gcTime;
+	    hksUint64 cFinalizerTime;
+	    hksUint64 compilerTime;
+	    hksUint32 hkssTimeSamples;
+	    hksUint32 callbackTimeSamples;
+	    hksUint32 gcTimeSamples;
+	    hksUint32 compilerTimeSamples;
+	    hksUint32 num_newuserdata;
+	    hksUint32 num_tablerehash;
+	    hksUint32 num_pushstring;
+	    hksUint32 num_pushcfunction;
+	    hksUint32 num_newtables;
+	    hksInt32 padding;
+	};
+
+	hksInt64 stackDepth;
+	hksInt64 callbackDepth;
+	hksUint64 lastTimer;
+	Stats frameStats;
+	hksUint64 gcStartTime;
+	hksUint64 finalizerStartTime;
+	hksUint64 compilerStartTime;
+	hksUint64 compilerStartGCTime;
+	hksUint64 compilerStartGCFinalizerTime;
+	hksUint64 compilerCallbackStartTime;
+	hksInt64 compilerDepth;
+	void* outFile;
+	lua_State* rootState;
+    };
+
+    struct HksGlobal
+    {
+	MemoryManager m_memory;
+	GarbageCollector m_collector;
+	StringTable m_stringTable;
+	hksInt64 padding3;
+	HksBytecodeSharingMode m_bytecodeSharingMode;
+	hksInt32 padding;
+	HksObject m_registry;
+	ChunkList m_userDataList;
+	lua_State* m_root;
+	StaticStringCache m_staticStringCache;
+	DebugInstance* m_debugger;
+	void* m_profiler;
+	RuntimeProfileData m_runProfilerData;
+	HksCompilerSettings m_compilerSettings;
+	lua_CFunction m_panicFunction;
+	void* m_luaplusObjectList;
+	hksInt32 m_heapAssertionFrequency;
+	hksInt32 m_heapAssertionCount;
+	HksLogFunc m_logFunction;
+	HksEmergencyGCFailFunc m_emergencyGCFailFunction;
+	HksBytecodeEndianness m_bytecodeDumpEndianness;
+	hksInt32 padding2;
+    };
+
+    struct DebugHook
+    {
+	lua_Hook m_callback;
+	hksInt32 m_mask;
+	hksInt32 m_count;
+	hksInt32 m_counter;
+	bool m_inuse;
+	const hksInstruction* m_prevPC;
+    };
+
+    struct DebugInstance
+    {
+	struct RuntimeProfilerStats
+	{
+	    hksInt32 hksTime;
+	    hksInt32 callbackTime;
+	    hksInt32 gcTime;
+	    hksInt32 cFinalizerTime;
+	    hksInt64 heapSize;
+	    hksInt64 num_newuserdata;
+	    hksInt64 num_pushstring;
+	};
+
+	hksInt32 m_savedObjects;
+	hksInt32 m_keepAliveObjects;
+	lua_State* m_activeState;
+	lua_State* m_mainState;
+	void* m_owner;
+	hksInt32 m_DebuggerLevel;
+	hksInt32 stored_Hook_level;
+	bool m_clearHook;
+	const hksInstruction* stored_Hook_return_addr;
+	hksInt32 m_debugStepLastLine;
+	DebugInstance* m_next;
+	const hksInstruction* m_activePC;
+	hksInt32 runtimeProfileSendBufferWritePosition;
+	RuntimeProfilerStats runtimeProfileSendBuffer[30];
+    };
+
+    struct HksClosure : ChunkHeader
+    {
+	struct MethodCache
+	{
+	    const HksObject* consts;
+	    const hksInstruction* inst;
+	    hksUshort16 m_numRegisters;
+	    hksByte m_flags;
+	    hksByte num_params;
+	};
+
+	Method* m_method;
+	HashTable* m_env;
+	hksByte m_mayHaveUpvalues;
+	MethodCache m_cache;
+	UpValue* m_upvalues[1];
+    };
+}
+
+struct lua_State // 0xE8
+{
+    enum Status : hksInt32
+    {
+	NEW = 0x1,
+	RUNNING = 0x2,
+	YIELDED = 0x3,
+	DEAD_ERROR = 0x4,
+    };
+
+    hks::ChunkHeader baseclass;
+    hks::HksGlobal* m_global;
+    hks::CallStack m_callStack;
+    hks::ApiStack m_apistack;
+    hks::UpValue* pending;
+    HksObject globals;
+    HksObject m_cEnv;
+    hks::ErrorHandler m_callsites;
+    hksInt32 m_numberOfCCalls;
+    void* m_context;
+    hks::InternString* m_name;
+    lua_State* m_next;
+    lua_State* m_nextStateStack;
+    Status m_status;
+    HksError m_error;
+    hks::DebugHook m_debugHook;
+};
+
+/* 294 */
+struct SCR_PROFILER_DATA
+{
+  gscProfileInfo_t *profileInfo[8];
+  uint32_t profileInfoCount;
+  uint8_t pad41;
+  uint8_t pad42;
+  uint8_t pad43;
+  uint8_t pad44;
+};
+
+/* 295 */
+struct function_stack_t
+{
+  void *pos;
+  void *top;
+  uint32_t localId;
+  uint32_t localVarCount;
+  void *startTop;
+  SCR_PROFILER_DATA profileData;
+  void *savedPos;
+};
+
+/* 229 */
+typedef unsigned __int64 uint64_t;
+
+/* 296 */
+struct __declspec(align(8)) function_frame_t
+{
+  function_stack_t _fs;
+  uint8_t nested;
+  uint64_t creationPos;
+};
+
+struct ScrVarStackBuffer_t
+{
+  byte *pos;
+  byte *creationPos;
+  int waitTime;
+  unsigned __int16 size;
+  unsigned __int16 bufLen;
+  ScrVarIndex_t localId;
+  byte buf[1];
+};
+
+/* 255 */
+union __declspec(align(8)) ScrVarValueUnion_t
+{
+  int intValue;
+  uint uintValue;
+  uint64_t uint64Value;
+  uintptr_t uintptrValue;
+  float floatValue;
+  ScrString_t stringValue;
+  const float *vectorValue;
+  byte *codePosValue;
+  unsigned int pointerValue;
+  ScrVarStackBuffer_t *stackValue;
+};
+
+/* 254 */
+struct __declspec(align(8)) ScrVarValue_t
+{
+  ScrVarValueUnion_t u;
+  int type;
+};
+
+/* 297 */
+typedef uint32_t ScrVarCanonicalName_t;
+
+/* 298 */
+typedef void (__fastcall *NotifyListener)(unsigned int, ScrVarCanonicalName_t);
+
+/* 258 */
+struct __declspec(align(8)) scrVmPub_t
+{
+  unsigned int *localVars;
+  ScrVarValue_t *maxstack;
+  int function_count;
+  function_frame_t *function_frame;
+  ScrVarValue_t *top;
+  bool debugCode;
+  bool abort_on_error;
+  bool terminal_error;
+  bool block_execution;
+  int callNesting;
+  unsigned int inparamcount;
+  unsigned int outparamcount;
+  unsigned int breakpointOutparamcount;
+  bool showError;
+  function_frame_t function_frame_start[64];
+  ScrVarValue_t stack[2048];
+  NotifyListener notifyListeners[1];
+};
+
+/* 293 */
+struct gscProfileInfo_t
+{
+  uint64_t inclusive_time;
+  uint64_t exclusive_time;
+  uint64_t hit_count;
+};
+
+// notes:
+// ugcinfo struct on steam is 0x4C8
+//                on wstor is 0x4BC (-0xC)
+
+struct ugcinfo_entry_steam // 0x4C8
+{
+    char pad[0x4C8];
+    // name: 0x0 (0x64)
+    // internalName: 0x64 (
+    // description: 0xA4
+    // ugcName: 0x84
+    // ugcVersion: ??
+};
+
+struct ugcinfo_steam
+{
+    uint32_t num_entries;
+    uint32_t unk4;
+    ugcinfo_entry_steam entries[128];
+};
+
+struct ugcinfo_entry_wstor // 0x4BC
+{
+    char name[0x64];
+    char internalName[0x20]; // 64
+    char ugcName[0x20]; // 84
+    char description[0x100]; // A4
+    char ugcPathBasic[0x104]; // 1A4
+    char ugcRoot[0x104]; // 2A8
+    char ugcPath[0x104]; // 3AC
+    uint32_t unk_4B0;
+    uint32_t hash_id; // 4B4
+    uint32_t unk_4B8;
+};
+
+enum AssetPool
+{
+    xasset_physpreset,
+    xasset_physconstraints,
+    xasset_destructibledef,
+    xasset_xanim,
+    xasset_xmodel,
+    xasset_xmodelmesh,
+    xasset_material,
+    xasset_computeshaderset,
+    xasset_techset,
+    xasset_image,
+    xasset_sound,
+    xasset_sound_patch,
+    xasset_col_map,
+    xasset_com_map,
+    xasset_game_map,
+    xasset_map_ents,
+    xasset_gfx_map,
+    xasset_lightdef,
+    xasset_lensflaredef,
+    xasset_ui_map,
+    xasset_font,
+    xasset_fonticon,
+    xasset_localize,
+    xasset_weapon,
+    xasset_weapondef,
+    xasset_weaponvariant,
+    xasset_weaponfull,
+    xasset_cgmediatable,
+    xasset_playersoundstable,
+    xasset_playerfxtable,
+    xasset_sharedweaponsounds,
+    xasset_attachment,
+    xasset_attachmentunique,
+    xasset_weaponcamo,
+    xasset_customizationtable,
+    xasset_customizationtable_feimages,
+    xasset_customizationtablecolor,
+    xasset_snddriverglobals,
+    xasset_fx,
+    xasset_tagfx,
+    xasset_klf,
+    xasset_impactsfxtable,
+    xasset_impactsoundstable,
+    xasset_player_character,
+    xasset_aitype,
+    xasset_character,
+    xasset_xmodelalias,
+    xasset_rawfile,
+    xasset_stringtable,
+    xasset_structuredtable,
+    xasset_leaderboarddef,
+    xasset_ddl,
+    xasset_glasses,
+    xasset_texturelist,
+    xasset_scriptparsetree,
+    xasset_keyvaluepairs,
+    xasset_vehicle,
+    xasset_addon_map_ents,
+    xasset_tracer,
+    xasset_slug,
+    xasset_surfacefxtable,
+    xasset_surfacesounddef,
+    xasset_footsteptable,
+    xasset_entityfximpacts,
+    xasset_entitysoundimpacts,
+    xasset_zbarrier,
+    xasset_vehiclefxdef,
+    xasset_vehiclesounddef,
+    xasset_typeinfo,
+    xasset_scriptbundle,
+    xasset_scriptbundlelist,
+    xasset_rumble,
+    xasset_bulletpenetration,
+    xasset_locdmgtable,
+    xasset_aimtable,
+    xasset_animselectortable,
+    xasset_animmappingtable,
+    xasset_animstatemachine,
+    xasset_behaviortree,
+    xasset_behaviorstatemachine,
+    xasset_ttf,
+    xasset_sanim,
+    xasset_lightdescription,
+    xasset_shellshock,
+    xasset_xcam,
+    xasset_bgcache,
+    xasset_texturecombo,
+    xasset_flametable,
+    xasset_bitfield,
+    xasset_attachmentcosmeticvariant,
+    xasset_maptable,
+    xasset_maptableloadingimages,
+    xasset_medal,
+    xasset_medaltable,
+    xasset_objective,
+    xasset_objectivelist,
+    xasset_umbra_tome,
+    xasset_navmesh,
+    xasset_navvolume,
+    xasset_binaryhtml,
+    xasset_laser,
+    xasset_beam,
+    xasset_streamerhint,
+    xasset__string,
+    xasset_assetlist,
+    xasset_report,
+    xasset_depend
+};
+
+enum netsrc_t
+{
+    NS_NULL = -1,
+    NS_CLIENT1 = 0,
+    NS_CLIENT2 = 1,
+    NS_CLIENT3 = 2,
+    NS_CLIENT4 = 3,
+    NS_SERVER = 4,
+    NS_MAXCLIENTS = 4,
+    NS_PACKET = 5
+};
+
+enum netadrtype_t
+{
+    NA_BOT = 0x0,
+    NA_BAD = 0x1,
+    NA_LOOPBACK = 0x2,
+    NA_RAWIP = 0x3,
+    NA_IP = 0x4,
+};
+
+enum LobbyType
+{
+    LOBBY_TYPE_INVALID = 0xFFFFFFFF,
+    LOBBY_TYPE_PRIVATE = 0x0,
+    LOBBY_TYPE_GAME = 0x1,
+    LOBBY_TYPE_TRANSITION = 0x2,
+    LOBBY_TYPE_COUNT = 0x3,
+    LOBBY_TYPE_FIRST = 0x0,
+    LOBBY_TYPE_LAST = 0x2,
+    LOBBY_TYPE_AUTO = 0x3,
+};
+
+enum LobbyModule
+{
+    LOBBY_MODULE_INVALID = 0xFFFFFFFF,
+    LOBBY_MODULE_HOST = 0x0,
+    LOBBY_MODULE_CLIENT = 0x1,
+    LOBBY_MODULE_PEER_TO_PEER = 0x3,
+    LOBBY_MODULE_COUNT = 0x4,
+};
+
+enum LobbyMode
+{
+    LOBBY_MODE_INVALID = 0xFFFFFFFF,
+    LOBBY_MODE_PUBLIC = 0x0,
+    LOBBY_MODE_CUSTOM = 0x1,
+    LOBBY_MODE_THEATER = 0x2,
+    LOBBY_MODE_ARENA = 0x3,
+    LOBBY_MODE_FREERUN = 0x4,
+    LOBBY_MODE_COUNT = 0x5,
+};
+
+enum SessionActive
+{
+    SESSION_INACTIVE = 0x0,
+    SESSION_KEEP_ALIVE = 0x1,
+    SESSION_ACTIVE = 0x2,
+};
+
+struct ugcinfo_wstor
+{
+    uint32_t num_entries;
+    ugcinfo_entry_wstor entries[128];
+};
+
+struct netadr_t
+{
+    uint8_t ipv4[4];
+    uint16_t port;
+    uint16_t pad;
+    netadrtype_t type;
+    netsrc_t localNetID;
+};
+
+struct msg_t
+{
+    uint8_t overflowed; // 0x0
+    uint8_t readOnly; // 0x1
+    uint16_t pad1; // 0x2
+    uint32_t pad2; // 0x4
+    char* data; // 0x8
+    char* splitData; // 0x10
+    uint32_t maxsize; // 0x18
+    uint32_t cursize; // 0x1C
+    uint32_t splitSize; // 0x20
+    uint32_t readcount; // 0x24
+    uint32_t bit; // 0x28
+    uint32_t lastEntityRef; // 0x2C
+    uint32_t flush; // 0x30
+    netsrc_t targetLocalNetID; // 0x34
+};
+
+enum errorCode : int32_t
+{
+    ERROR_NONE = 0x0,
+    ERROR_FATAL = 0x1,
+    ERROR_DROP = 0x2,
+    ERROR_FROM_STARTUP = 0x4,
+    ERROR_SERVERDISCONNECT = 0x8,
+    ERROR_DISCONNECT = 0x10,
+    ERROR_SCRIPT = 0x20,
+    ERROR_SCRIPT_DROP = 0x40,
+    ERROR_LOCALIZATION = 0x80,
+    ERROR_UI = 0x100,
+    ERROR_LUA = 0x200,
+    ERROR_SOFTRESTART = 0x400,
+    ERROR_SOFTRESTART_KEEPDW = 0x800
+};
+
+enum MsgType
+{
+    MESSAGE_TYPE_NONE = -1,
+    MESSAGE_TYPE_INFO_REQUEST = 0,
+    MESSAGE_TYPE_INFO_RESPONSE = 1,
+    MESSAGE_TYPE_LOBBY_STATE_PRIVATE = 2,
+    MESSAGE_TYPE_LOBBY_STATE_GAME = 3,
+    MESSAGE_TYPE_LOBBY_STATE_GAMEPUBLIC = 4,
+    MESSAGE_TYPE_LOBBY_STATE_GAMECUSTOM = 5,
+    MESSAGE_TYPE_LOBBY_STATE_GAMETHEATER = 6,
+    MESSAGE_TYPE_LOBBY_HOST_HEARTBEAT = 7,
+    MESSAGE_TYPE_LOBBY_HOST_DISCONNECT = 8,
+    MESSAGE_TYPE_LOBBY_HOST_DISCONNECT_CLIENT = 9,
+    MESSAGE_TYPE_LOBBY_HOST_LEAVE_WITH_PARTY = 0xA,
+    MESSAGE_TYPE_LOBBY_CLIENT_HEARTBEAT = 0xB,
+    MESSAGE_TYPE_LOBBY_CLIENT_DISCONNECT = 0xC,
+    MESSAGE_TYPE_LOBBY_CLIENT_RELIABLE_DATA = 0xD,
+    MESSAGE_TYPE_LOBBY_CLIENT_CONTENT = 0xE,
+    MESSAGE_TYPE_LOBBY_MODIFIED_STATS = 0xF,
+    MESSAGE_TYPE_JOIN_LOBBY = 0x10,
+    MESSAGE_TYPE_JOIN_RESPONSE = 0x11,
+    MESSAGE_TYPE_JOIN_AGREEMENT_REQUEST = 0x12,
+    MESSAGE_TYPE_JOIN_AGREEMENT_RESPONSE = 0x13,
+    MESSAGE_TYPE_JOIN_COMPLETE = 0x14,
+    MESSAGE_TYPE_JOIN_MEMBER_INFO = 0x15,
+    MESSAGE_TYPE_SERVERLIST_INFO = 0x16,
+    MESSAGE_TYPE_PEER_TO_PEER_CONNECTIVITY_TEST = 0x17,
+    MESSAGE_TYPE_PEER_TO_PEER_INFO = 0x18,
+    MESSAGE_TYPE_LOBBY_MIGRATE_TEST = 0x19,
+    MESSAGE_TYPE_MIGRATE_ANNOUNCE_HOST = 0x1A,
+    MESSAGE_TYPE_MIGRATE_START = 0x1B,
+    MESSAGE_TYPE_INGAME_MIGRATE_TO = 0x1C,
+    MESSAGE_TYPE_MIGRATE_NEW_HOST = 0x1D,
+    MESSAGE_TYPE_VOICE_PACKET = 0x1E,
+    MESSAGE_TYPE_VOICE_RELAY_PACKET = 0x1F,
+    MESSAGE_TYPE_DEMO_STATE = 0x20,
+    MESSAGE_TYPE_COUNT = MESSAGE_TYPE_DEMO_STATE + 1
+};
+
+struct LobbyMsg
+{
+    msg_t msg;
+    MsgType msgType; // 0x38
+    char encodeFlags;
+    uint32_t packageType;
 };

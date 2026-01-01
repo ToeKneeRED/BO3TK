@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include <qstring.h>
 #include <qwidget.h>
-#include <QGuiApplication>
 #include <QScreen>
 
 #include "Notification.h"
@@ -17,7 +16,7 @@ struct NotificationManager
     }
 
 private:
-    static inline QList<Notification*> activeNotifications;
-    static inline int nextNotificationYOffset = 0;
-    static constexpr int notificationSpacing = 8;
+    QList<Notification*> s_activeNotifications;
+    int s_nextNotificationYOffset = 0;
+    const int m_notificationSpacing = 8;
 };

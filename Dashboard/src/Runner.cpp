@@ -24,26 +24,28 @@
 #include "CommandDispatcher.h"
 #include "HookEvent.h"
 
-static std::vector<FuncHook> g_hooks{};
-
 // i broke something and now it doesnt like wWinMain, so now main
-int main(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ const LPWSTR lpCmdLine, _In_ int)
+int Runner::Start(const LPWSTR apcCmdLine)
 {
-    auto [argc, argv] = Runner::ParseCommandLine(lpCmdLine);
+    auto [argc, argv] = ParseCommandLine(apcCmdLine);
     Dashboard::Init(argc, argv.data());
 
-    std::thread([]()
+    std::thread([=]()
     {
-        Runner::g_eventHandler->Start();
-        Runner::g_eventHandler->RegisterEvent<HookEvent>();
+        m_eventHandler->RegisterEvent<HookEvent>([](const HookEvent& acEvent)
+        {
+            Log::Get()->Print("Registered {}", typeid(HookEvent).name());
+        });
+        m_eventHandler->Start();
+
     }).detach();
 
-    Runner::CreateDashboardComponents();
+    CreateDashboardComponents();
 
     return Dashboard::Run();
 }
 
-static CommandLineArgs Runner::ParseCommandLine(const LPWSTR apcCmdLine)
+CommandLineArgs Runner::ParseCommandLine(const LPWSTR apcCmdLine)
 {
     CommandLineArgs cli{};
 
@@ -94,35 +96,28 @@ void Runner::OnLaunchButtonPress(Button* apButton)
                         }
                     }
 
-                    QMetaObject::invokeMethod(
-                        apButton,
-                        [=]
+                    QMetaObject::invokeMethod(apButton, [=]
+                    {
+                        if (!apButton->IsAnimating())
                         {
-                            if (!apButton->IsAnimating())
-                            {
-                                apButton->AnimateToOriginal();
-                            }
-                        },
-                        Qt::QueuedConnection);
+                            apButton->AnimateToOriginal();
+                        }
+                    }, Qt::QueuedConnection);
 
                     CloseHandle(hProcess);
                     CloseHandle(hThread);
-                })
-                .detach();
+                }).detach();
+
+            NotificationManager::ShowNotification(QString("Successfully launched & injected"), Dashboard::Window);
         }
         else
         {
             apButton->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
 
-            QTimer::singleShot(
-                3000, apButton,
-                [=]
-                {
-                    if (!apButton->IsAnimating())
-                    {
-                        apButton->AnimateToOriginal();
-                    }
-                });
+            QTimer::singleShot(3000, apButton, [apButton]()
+            {
+                AnimateButton(apButton);
+            });
         }
     }
     else
@@ -135,15 +130,10 @@ void Runner::OnLaunchButtonPress(Button* apButton)
 
         apButton->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
 
-        QTimer::singleShot(
-            3000, apButton,
-            [=]
-            {
-                if (!apButton->IsAnimating())
-                {
-                    apButton->AnimateToOriginal();
-                }
-            });
+        QTimer::singleShot(3000, apButton, [apButton]()
+        {
+            AnimateButton(apButton);
+        });
     }
 }
 
@@ -261,6 +251,7 @@ void Runner::CreateDashboardComponents()
     Dashboard::Layout->addLayout(cRowLayout);
     Dashboard::Layout->addStretch();
 
+    // Hooks
     const QPointer cHooksLabel = new QLabel("Function Hooks");
     cHooksLabel->setStyleSheet("color: #ffffff");
     cHooksLabel->setFont(QFont("Jetbrains Mono NL Semibold", 10));
@@ -269,97 +260,83 @@ void Runner::CreateDashboardComponents()
     const QPointer cHooksLayout = new QVBoxLayout(Dashboard::Window);
     cHooksLayout->addWidget(cHooksLabel);
 
-    for (FuncHook& hook : g_hooks)
+    m_hookButtons.push_back(new HookButton{ new FuncHook("Fake Hook 1", 0x10, 0x11), nullptr });
+    m_hookButtons.push_back(new HookButton{ new FuncHook("Fake Hook 2", 0x20, 0x21), nullptr });
+    m_hookButtons.push_back(new HookButton{ new FuncHook("Fake Hook 3", 0x30, 0x31), nullptr });
+    m_hookButtons.push_back(new HookButton{ new FuncHook("Fake Hook 4", 0x40, 0x41), nullptr });
+    m_hookButtons.push_back(new HookButton{ new FuncHook("Fake Hook 5", 0x50, 0x51), nullptr });
+
+    for (HookButton* button : m_hookButtons)
     {
-        QCheckBox* pCheckBox = new QCheckBox(QString::fromStdString(hook.Name), Dashboard::Window);
-        pCheckBox->setChecked(hook.Enabled);
-        pCheckBox->setStyleSheet("color: #ffffff;");
+        button->Checkbox = new QCheckBox(button->Hook->Name.c_str(), Dashboard::Window);
+        button->Checkbox->setChecked(button->Hook->Enabled);
+        button->Checkbox->setStyleSheet(R"(
+            QCheckBox {
+                color: #ffffff;
+                font-family: "JetBrains Mono NL";
+                font-size: 14px;
+                spacing: 8px;
+            }
+            QCheckBox:hover { color: #b0b0b0; }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                background-color: #2c2c2c;
+                border: 1px solid #444444;
+            }
+            QCheckBox::indicator:hover {
+                border: 1px solid #5a9bd5;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #5a9bd5;
+            }
+        )");
 
-        QObject::connect(pCheckBox, &QCheckBox::toggled, [&](bool aChecked)
+        QObject::connect(button->Checkbox, &QCheckBox::toggled, [=](const bool acChecked)
         {
-            hook.Enabled = aChecked;
+            button->Hook->Enabled = acChecked;
 
-            if (aChecked)
+            if (acChecked)
             {
-                //EnableHook(hook.Target);
 
-                if (g_eventHandler)
+                /*if (g_eventHandler)
                 {
-                    std::unique_ptr<HookEvent> hookEvent { new HookEvent() };
-                    hookEvent->SetData(hook);
-
-                    //g_commandEventSender->Send(hookEvent);
-
-                    NotificationManager::ShowNotification(
-                        QString::fromStdString(hook.Name + " hook " + (hook.Enabled ? "enabled" : "disabled")),
-                        Dashboard::Window);
-                }
+                    HookEvent hookEvent(*button->Hook);
+                    g_eventHandler->Send(hookEvent);
+                }*/
             }
             else
             {
                 //DisableHook(hook.Target);
             }
 
-            Dashboard::Settings->setValue(QString("HookEnabled_%1").arg(hook.Name.c_str()), aChecked);
+            NotificationManager::ShowNotification(
+                (button->Hook->Name + (button->Hook->Enabled ? " enabled" : " disabled")).c_str(),
+                Dashboard::Window);
+
+            //Dashboard::Settings->setValue(QString("HookEnabled_%1").arg(hook->Name.c_str()), acChecked);
         });
 
-        cHooksLayout->addWidget(pCheckBox);
+        cHooksLayout->addWidget(button->Checkbox);
     }
+
     Dashboard::Layout->addLayout(cHooksLayout);
+    Dashboard::Layout->addStretch();
 
-    const QPointer cSentEventsLayout = new QVBoxLayout(Dashboard::Window);
-    Dashboard::Layout->addLayout(cSentEventsLayout);
+    RECT rect{};
+    const auto cDashboardWindow = GetActiveWindow();
+    GetWindowRect(cDashboardWindow, &rect);
+    const auto cDashboardHeight = rect.bottom - rect.top;
 
-    const QPointer cEventLayout = new QHBoxLayout(Dashboard::Window);
-    QPointer sendEventInputField = Dashboard::CreateComponent<InputField>("", Dashboard::Window);
-    sendEventInputField->setAlignment(Qt::AlignBottom);
-    QObject::connect(
-        sendEventInputField, &QLineEdit::returnPressed,
-        [sendEventInputField, cSentEventsLayout]
-        {
-            if (sendEventInputField->text().isEmpty())
-                return;
+    SetWindowPos(GetConsoleWindow(), nullptr, 0, cDashboardHeight, 0, 0, SWP_NOSIZE);
+    SetWindowPos(cDashboardWindow, nullptr, 0, 0, 0, 0, SWP_NOSIZE);
+}
 
-            const QPointer cEventText = new QLabel(sendEventInputField->text());
-            cEventText->setStyleSheet(R"(color: #ffffff)");
-            cEventText->setFont(QFont("Jetbrains Mono NL Semibold", 10));
-            cEventText->setFixedHeight(16);
-            cEventText->setAlignment(Qt::AlignBottom);
-            cSentEventsLayout->addWidget(cEventText);
-
-            auto* opacityEffect = new QGraphicsOpacityEffect(cEventText);
-            cEventText->setGraphicsEffect(opacityEffect);
-            opacityEffect->setOpacity(1.0);
-
-            auto* fadeAnim = new QPropertyAnimation(opacityEffect, "opacity", cEventText);
-            fadeAnim->setDuration(1000);
-            fadeAnim->setStartValue(1.0);
-            fadeAnim->setEndValue(0.0);
-            fadeAnim->setEasingCurve(QEasingCurve::Linear);
-
-            QTimer::singleShot(3000, [fadeAnim]() { fadeAnim->start(); });
-
-            QObject::connect(fadeAnim, &QPropertyAnimation::finished, cEventText, &QWidget::deleteLater);
-
-            /*if (g_commandEventSender)
-            {
-                const std::string cToSend = std::string(sendEventInputField->text().toUtf8().constData());
-                g_commandEventSender->Send(*new std::string(cToSend));
-
-                NotificationManager::ShowNotification(
-                    "Command sent: " + sendEventInputField->text(), Dashboard::Window);
-            }*/
-
-            sendEventInputField->setText("");
-        });
-    const QPointer cSendEventButton = Dashboard::CreateComponent<Button>("Send", Dashboard::Window);
-    cSendEventButton->setFixedWidth(50);
-    cSendEventButton->OnPress += [sendEventInputField]
+void Runner::AnimateButton(Button* apButton) 
+{
+    if (!apButton->IsAnimating())
     {
-        sendEventInputField->returnPressed();
-    };
-
-    cEventLayout->addWidget(sendEventInputField);
-    cEventLayout->addWidget(cSendEventButton);
-    Dashboard::Layout->addLayout(cEventLayout);
+        apButton->AnimateToOriginal();
+    }
 }

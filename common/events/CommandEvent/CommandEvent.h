@@ -1,4 +1,6 @@
 #pragma once
+#include <string>
+
 #include "Event.h"
 
 struct CommandEvent : Event<std::string>

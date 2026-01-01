@@ -206,7 +206,7 @@ typedef const char*(__fastcall* Dvar_RegisterNew_t)(unsigned int, dvarType_t, un
 inline Dvar_RegisterNew_t oDvar_RegisterNew = nullptr;
 inline const char* hDvar_RegisterNew(unsigned int dvarName, dvarType_t type, unsigned int a3, unsigned int a4, void* a5, void* a6, __int64 a7)
 {
-    //Log::Get()->Print("[Dvar_RegisterNew] 0x{:X} {}", dvarName, type);
+    Log::Get()->Print("[Dvar_RegisterNew] 0x{:X} {}", dvarName, type);
 
     return oDvar_RegisterNew(dvarName, type, a3, a4, a5, a6, a7);
 }
@@ -255,12 +255,12 @@ inline __int64 hRegisterLuaEnums(lua_State* luaVM)
 }
 
 #define Com_Error(code, fmt, ...) ((void(__fastcall*)(const char*, uint32_t, uint32_t, const char*, ...))OFFSET(0x2210B90))("", 0, code, fmt, __VA_ARGS__)
-//typedef void(__fastcall* Com_Error_t)(const char*, int, unsigned int, const char*, ...);
-//inline Com_Error_t oCom_Error = nullptr;
-//inline void hCom_Error(const char* a1, int a2, unsigned int a3, const char* a4, ...)
-//{
-//    return oCom_Error(a1, a2, a3, a4);
-//}
+typedef void(__fastcall* Com_Error_t)(const char*, int, unsigned int, const char*, ...);
+inline Com_Error_t oCom_Error = nullptr;
+inline void hCom_Error(const char* a1, int a2, unsigned int a3, const char* a4, ...)
+{
+    return oCom_Error(a1, a2, a3, a4);
+}
 
 // yoinked from https://github.com/shiversoftdev/BO3Enhanced
 #define LUA_REGISTRYINDEX	(-10000)
@@ -515,7 +515,7 @@ inline void lua_getfield(lua_State* s, int index, const char* k)
 {
     auto object = getObjectForIndex(s, index);
 
-    const HksRegister v16;
+    constexpr HksRegister v16{};
 
     auto top = --s->m_apistack.top;
     top->v.cClosure = object.v.cClosure;
