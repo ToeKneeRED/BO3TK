@@ -1,4 +1,6 @@
-local sln_path = os.curdir() .. "\\vsxmake2022\\Black Ops III Toe Knee.sln"
+import("core.project.project")
+
+local sln_path = os.curdir().."\\vsxmake2022\\"..project.name()..".sln"
 local f = assert(io.open(sln_path, "r"))
 local content = f:read("*a")
 f:close()
@@ -30,7 +32,7 @@ for proj, deps in pairs(dependencies) do
         dep_block = dep_block .. "\tEndProjectSection\n"
 
         local pattern = "(Project%b() = \""..proj.."\".-)\nEndProject"
-        content = content:gsub(pattern, "%1\n" .. dep_block .. "EndProject")
+        content = content:gsub(pattern, "%1\n"..dep_block.."EndProject")
     end
 end
 
