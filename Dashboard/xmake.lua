@@ -24,3 +24,7 @@ target("Dashboard")
     if dll then
         add_defines("DLL_PATH=\"" .. dll .. "\"")
     end
+
+    after_build(function (target)
+        os.exec("windeployqt %s", target:targetfile())
+    end)

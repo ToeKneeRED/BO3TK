@@ -64,15 +64,9 @@ struct Injector
                 CloseHandle(cRemoteThread);
                 result = TRUE;
             }
-            else
-            {
-                Log::Get()->Error("CreateRemoteThread failed");
-            }
+            else { Log::Get()->Error("CreateRemoteThread failed"); }
         }
-        else
-        {
-            Log::Get()->Error("WriteProcessMemory failed");
-        }
+        else { Log::Get()->Error("WriteProcessMemory failed"); }
 
         VirtualFreeEx(cProcess, cRemoteString, 0, MEM_RELEASE);
         CloseHandle(cProcess);

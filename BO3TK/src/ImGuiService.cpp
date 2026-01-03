@@ -1,4 +1,5 @@
 ﻿#include "ImGuiService.h"
+#include "imgui.h"
 #include "Hooks.h"
 #include "Log.h"
 
@@ -20,18 +21,14 @@ ImGuiService* ImGuiService::Init(const HWND& acWindow, ID3D11Device* apDevice, I
 
 ImGuiService* ImGuiService::Get()
 {
-    if (!s_instance)
-    {
-        Log::Get()->Error("ImGuiService not initialized. Call Get(window, device, context) first");
-    }
+    if (!s_instance) { Log::Get()->Error("ImGuiService not initialized. Call Get(window, device, context) first"); }
 
     return s_instance;
 }
 
 LRESULT CALLBACK ImGuiService::WndProcHook(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
-        return true;
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam)) return true;
 
     const ImGuiIO& cIo = ImGui::GetIO();
 
@@ -39,12 +36,12 @@ LRESULT CALLBACK ImGuiService::WndProcHook(HWND hWnd, UINT uMsg, WPARAM wParam, 
     {
         switch (uMsg)
         {
-        case WM_KEYDOWN:
-        case WM_KEYUP:
-        case WM_CHAR:
-        case WM_SYSKEYDOWN:
-        case WM_SYSKEYUP: return 0;
-        default: break;
+            case WM_KEYDOWN:
+            case WM_KEYUP:
+            case WM_CHAR:
+            case WM_SYSKEYDOWN:
+            case WM_SYSKEYUP: return 0;
+            default: break;
         }
     }
 
@@ -52,15 +49,15 @@ LRESULT CALLBACK ImGuiService::WndProcHook(HWND hWnd, UINT uMsg, WPARAM wParam, 
     {
         switch (uMsg)
         {
-        case WM_LBUTTONDOWN:
-        case WM_LBUTTONUP:
-        case WM_MOUSEMOVE:
-        case WM_MOUSEWHEEL:
-        case WM_RBUTTONDOWN:
-        case WM_RBUTTONUP:
-        case WM_MBUTTONDOWN:
-        case WM_MBUTTONUP: return 0;
-        default: break;
+            case WM_LBUTTONDOWN:
+            case WM_LBUTTONUP:
+            case WM_MOUSEMOVE:
+            case WM_MOUSEWHEEL:
+            case WM_RBUTTONDOWN:
+            case WM_RBUTTONUP:
+            case WM_MBUTTONDOWN:
+            case WM_MBUTTONUP: return 0;
+            default: break;
         }
     }
 

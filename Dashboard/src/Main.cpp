@@ -2,7 +2,7 @@
 
 int main(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ const LPWSTR lpCmdLine, _In_ int)
 {
-    Runner* runner = new Runner();
+    const std::unique_ptr<Runner> cRunner = std::make_unique<Runner>();
 
-    return runner->Start(lpCmdLine);
+    return cRunner->Start(lpCmdLine);
 }

@@ -6,6 +6,7 @@
 struct Notification : Component<QWidget>
 {
     Q_OBJECT
+
 public:
     Notification(const QString& acMessage, QWidget* apParent = nullptr);
 

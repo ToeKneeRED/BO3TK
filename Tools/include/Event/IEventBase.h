@@ -1,5 +1,7 @@
 ﻿#pragma once
-#include <functional>
+#include <Windows.h>
+#include <string>
+#include <type_traits> // remove and compilation perishes
 
 struct IEventBase
 {
@@ -14,8 +16,9 @@ struct IEventBase
     IEventBase& operator=(IEventBase&&) = default;
     virtual ~IEventBase()
     {
-        if ((m_pipe != INVALID_HANDLE_VALUE || m_pipe != nullptr) && m_connected)
+        if ((m_pipe != INVALID_HANDLE_VALUE && m_pipe != nullptr) && m_connected)
         {
+            m_connected = false;
             CloseHandle(m_pipe);
             m_pipe = INVALID_HANDLE_VALUE;
         }

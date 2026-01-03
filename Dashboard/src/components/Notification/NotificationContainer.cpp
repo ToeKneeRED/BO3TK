@@ -24,8 +24,7 @@ NotificationContainer* NotificationContainer::Instance(QWidget* apParent)
 {
     static NotificationContainer* instance = new NotificationContainer(apParent);
 
-    if (!instance->isVisible())
-        instance->show();
+    if (!instance->isVisible()) instance->show();
 
     if (apParent)
     {

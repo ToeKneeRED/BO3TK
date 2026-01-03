@@ -1,21 +1,75 @@
 #pragma once
+#include <string>
+
 #include "Event.h"
 
-struct FuncHook
+enum class HookType : uint8_t
 {
-    explicit FuncHook(const std::string& acName = "", const uintptr_t& acTarget = 0, const uintptr_t& acDetour = 0, 
-        void* apOriginal = nullptr, const bool& acEnabled = false) : Name(acName), Target(acTarget),
-        Detour(acDetour), Original(apOriginal), Enabled(acEnabled){}
+    None,
+    Function,
+    Library
+};
 
+#pragma pack(push, 1)
+struct HookPayload
+{
+    HookType Type{};
+    bool Enabled{};
+
+    char FuncName[64]{};
+    char LibName[64]{};
+};
+#pragma pack(pop)
+
+struct HookEvent : Event<HookPayload>
+{
+    HookEvent(const HookPayload& payload)
+        : Event(payload, "HookEvent")
+    {
+    }
+};
+
+struct IHook
+{
+    explicit IHook(
+        const HookType& acType = HookType::None, const std::string& acName = "", const uintptr_t& acTarget = 0,
+        const uintptr_t& acDetour = 0, void* apOriginal = nullptr, const bool& acEnabled = false)
+        : Type(acType)
+        , Name(acName)
+        , Target(acTarget)
+        , Detour(acDetour)
+        , Original(apOriginal)
+        , Enabled(acEnabled)
+    {
+    }
+    IHook(const IHook&) = default;
+    IHook(IHook&&) = default;
+    virtual IHook& operator=(const IHook&) = default;
+    virtual IHook& operator=(IHook&&) = default;
+    virtual ~IHook() = default;
+
+    HookType Type{};
     std::string Name{};
     uintptr_t Target{};
     uintptr_t Detour{};
     void* Original{};
-    bool Enabled;
+    bool Enabled{};
+};
+struct FuncHook : IHook
+{
+    FuncHook(const std::string& acName, uintptr_t acTarget)
+        : IHook(HookType::Function, acName, acTarget)
+    {
+    }
 };
 
-struct HookEvent : Event<FuncHook>
+struct LibHook : IHook
 {
-    HookEvent() : Event("HookEvent") {}
-    HookEvent(const FuncHook& acHook) : Event(acHook, "HookEvent") {}
+    LibHook(const std::string& acLibName = "", const std::string& acFuncName = "", uintptr_t acTarget = 0)
+        : IHook(HookType::Library, acFuncName, acTarget)
+        , LibName(acLibName)
+    {
+    }
+
+    std::string LibName;
 };

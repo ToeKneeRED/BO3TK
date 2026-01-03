@@ -3,19 +3,27 @@ BasedOnStyle: LLVM
 AccessModifierOffset: -4
 AlignAfterOpenBracket: AlwaysBreak
 AlignEscapedNewlines: Left
-AlignOperands: true
+AllowShortBlocksOnASingleLine: Always
 AllowShortCaseLabelsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: InlineOnly
-AllowShortLambdasOnASingleLine: Inline
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse 
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: true
 BraceWrapping:
   AfterCaseLabel: true
+  BeforeLambdaBody: false
   IndentBraces: true
+  SplitEmptyRecord: false
 BreakBeforeBraces: Allman
 BreakConstructorInitializers: BeforeComma
 ColumnLimit: 120
+EmptyLineBeforeAccessModifier: Always
+IndentCaseLabels: true
 IndentWidth: 4
+Language: Cpp
 PenaltyBreakFirstLessLess: 120
 PointerAlignment: Left
+ReferenceAlignment: Left
 SortIncludes: Never
 SpaceBeforeParensOptions:
   AfterControlStatements: false

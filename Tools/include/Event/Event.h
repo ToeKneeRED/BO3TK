@@ -8,15 +8,21 @@ template <typename Type> struct Event : IEventBase
 
     using IEventBase::IEventBase;
     explicit Event(const char* acName = "")
-        : IEventBase(acName) {}
-    explicit Event(DataType acData, const char* acName = "") : IEventBase(acName), m_data(std::move(acData)) {}
-    Event() : IEventBase() {}
+        : IEventBase(acName)
+    {
+    }
+    explicit Event(DataType acData, const char* acName = "")
+        : IEventBase(acName)
+        , m_data(std::move(acData))
+    {
+    }
+    Event()
+        : IEventBase()
+    {
+    }
     Event(const Event&) = default;
     Event(Event&&) = default;
-    ~Event() override
-    {
-        IEventBase::~IEventBase();
-    };
+    ~Event() override { IEventBase::~IEventBase(); };
     Event& operator=(const Event&) = default;
     Event& operator=(Event&&) = default;
 

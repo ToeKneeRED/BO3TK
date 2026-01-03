@@ -6,6 +6,7 @@
 struct InputField final : Component<QLineEdit>
 {
     Q_OBJECT
+
 public:
     explicit InputField(const QString& acText, QWidget* apParent = nullptr);
 

@@ -3,39 +3,31 @@
 #include <d3d11.h>
 #include <tlhelp32.h>
 #include <Psapi.h>
-#include <fstream>
 #include <windows.h>
 
 #include "Hooks.h"
 #include "Log.h"
 #include "ImGuiService.h"
 
-//#include "CommandDispatcher.h"
-//#include "CommandEvent.h"
 #include <Event/EventHandler.h>
-
 #include "HookEvent.h"
 
-
-auto* g_log = Log::Get();
 std::atomic g_stop = false;
-std::unordered_map<dvarStrHash_t, std::string> g_dvarHashMap{};
+static std::shared_ptr<EventHandler> s_eventHandler = std::make_shared<EventHandler>("BO3TK_exe", "BO3TK_dll");
 
 typedef LONG(NTAPI* NtResumeThread_t)(HANDLE, PULONG);
 static void ResumeProcess(const DWORD acProcessId)
 {
     const HANDLE cThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
 
-    if (cThreadSnap == INVALID_HANDLE_VALUE)
-        return;
+    if (cThreadSnap == INVALID_HANDLE_VALUE) return;
 
     THREADENTRY32 te32;
     te32.dwSize = sizeof(THREADENTRY32);
 
     if (Thread32First(cThreadSnap, &te32))
     {
-        do
-        {
+        do {
             if (te32.th32OwnerProcessID == acProcessId)
             {
                 if (const HANDLE cHThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te32.th32ThreadID))
@@ -57,7 +49,7 @@ static void ResumeProcess(const DWORD acProcessId)
     CloseHandle(cThreadSnap);
 }
 
-static DWORD WINAPI MainThread(const std::atomic<bool>& acStop)
+static void MainThread()
 {
     MODULEINFO modInfo;
     if (GetModuleInformation(GetCurrentProcess(), static_cast<HMODULE>(Exe::BaseModule), &modInfo, sizeof(modInfo)))
@@ -68,8 +60,8 @@ static DWORD WINAPI MainThread(const std::atomic<bool>& acStop)
     }
     else
     {
-        g_log->Print("mod info failed");
-        return 0;
+        Log::Get()->Print("mod info failed");
+        return;
     }
 
     if (ImGuiService::Test())
@@ -79,91 +71,83 @@ static DWORD WINAPI MainThread(const std::atomic<bool>& acStop)
 
         if (const MH_STATUS cStatus = MH_Initialize(); cStatus != MH_OK)
         {
-            g_log->Error("Failed minhook initialize: {}", MH_StatusToString(cStatus));
-            return FALSE;
+            Log::Get()->Error("Failed minhook initialize: {}", MH_StatusToString(cStatus));
+            return;
         }
 
-        do
-        {
-            if (acStop)
-                return FALSE;
+        do {
+            if (g_stop) return;
 
-            g_log->Print("{}Waiting for Present hook...", NarrowText::Foreground::Yellow);
+            Log::Get()->Print("{}Waiting for Present hook...", NarrowText::Foreground::Yellow);
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
         } while (!Hooks::BindVTable(8, reinterpret_cast<void**>(&Hooks::OriginalPresent), &Hooks::HookPresent));
 
-        g_log->Print("{}Present hooked", NarrowText::Foreground::Green);
+        Log::Get()->Print("{}Present hooked", NarrowText::Foreground::Green);
     }
-
-    // safe mode
-    LIB_HOOK("user32.dll", MessageBoxA, &Hooks::hMessageBoxA, &Hooks::oMessageBoxA)
-    FUNC_HOOK(0x200BCC0, RegisterLuaEnums)
-    //FUNC_HOOK(0x2210B90, Com_Error)
-    FUNC_HOOK(0x23ABA90, Dvar_SetFromStringByName)
-    //FUNC_HOOK(0x13DF170, Com_HashString)
-    FUNC_HOOK(0x23B46F0, PLmemcpy)
-    FUNC_HOOK(0x220F4F0, Com_PrintMessage)
-    //FUNC_HOOK(0x1E54EF0, lua_pcall)
-    FUNC_HOOK(0x23A6870, Dvar_RegisterNew)
-    //MH_EnableHook(nullptr);
-
-    return 0;
 }
 
 static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call)
     {
-    case DLL_PROCESS_ATTACH:
-    {
-        DisableThreadLibraryCalls(hModule);
+        case DLL_PROCESS_ATTACH:
+        {
+            DisableThreadLibraryCalls(hModule);
 
-        std::thread(MainThread, std::ref(g_stop)).detach();
-        std::thread(
-            [&]
-            {
-                while (!g_stop.load())
+            std::thread(MainThread).detach();
+            std::thread(
+                [=]
                 {
-                    if (GetAsyncKeyState(VK_END) & 0x01)
+                    while (!g_stop)
                     {
-                        spdlog::default_logger()->flush();
-                        g_log->Print("Exiting...");
+                        if (GetAsyncKeyState(VK_END) & 0x01)
+                        {
+                            spdlog::default_logger()->flush();
+                            Log::Get()->Print("Exiting...");
 
-                        g_stop.store(true);
+                            g_stop = true;
+                        }
+
+                        std::this_thread::sleep_for(std::chrono::milliseconds(300));
                     }
-                    else if (GetAsyncKeyState(VK_HOME) & 0x01)
+                }).detach();
+            std::thread(
+                [=]()
+                {
+                    s_eventHandler->AddCallback<HookEvent>(
+                        [](const HookPayload& acData)
+                        {
+                            switch (acData.Type)
+                            {
+                                case HookType::Function: Log::Get()->Print(
+                                        "[HookEvent<FuncHook>] {}: {}", acData.FuncName, acData.Enabled);
+                                    break;
+
+                                case HookType::Library: Log::Get()->Print(
+                                        "[HookEvent<LibHook>] {}\t{}: {}", acData.LibName, acData.FuncName,
+                                        acData.Enabled);
+                                    break;
+                                case HookType::None: break;
+                            }
+                        });
+                    while (!s_eventHandler->Run())
                     {
-                        Com_Error(ERROR_UI, "Something :)");
-                        //Hooks::oCom_Error("", 0, ERROR_UI, "Something :)");
+                        Log::Get()->Error("Disconnected from EventHandler...");
+                        std::this_thread::sleep_for(std::chrono::milliseconds(s_eventHandler->SleepDuration));
                     }
-
-                    std::this_thread::sleep_for(std::chrono::milliseconds(300));
-                }
-            })
-            .detach();
-        std::thread([&]()
-        {
-            std::unique_ptr<EventHandler> eventHandler{ new EventHandler("BO3TK_dll") };
-
-            eventHandler->RegisterEvent<HookEvent>([](const HookEvent& acEvent)
-            {
-                auto data = static_cast<const FuncHook*>(acEvent.GetData());
-                Log::Get()->Print("[HookEvent] {}: {}", data->Name, data->Enabled);
-            });
-            eventHandler->Start();
-        }).detach();
-    }
-    break;
-    case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-    case DLL_PROCESS_DETACH:
-        if (g_stop)
-        {
-            MH_DisableHook(MH_ALL_HOOKS);
-            MH_Uninitialize();
+                }).detach();
         }
         break;
-    default: break;
+        case DLL_THREAD_ATTACH:
+        case DLL_THREAD_DETACH:
+        case DLL_PROCESS_DETACH: 
+            if (g_stop)
+            {
+                MH_DisableHook(MH_ALL_HOOKS);
+                MH_Uninitialize();
+            }
+            break;
+        default: break;
     }
 
     return TRUE;

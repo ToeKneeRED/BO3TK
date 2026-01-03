@@ -8,37 +8,33 @@
 #include "Button.h"
 #include "BrowseButton.h"
 #include "InputField.h"
-#include "EventHandler.h"
-#include "Event.h"
-//#include "CommandEvent.h"
 #include "Injector.h"
 #include "NotificationManager.h"
+#include "HookEvent.h"
+#include "EventHandler.h"
 
 #include <QMenuBar>
-#include <QApplication>
 #include <QPointer>
 #include <QPropertyAnimation>
 #include <QGraphicsOpacityEffect>
 #include <QCheckbox>
 
-#include "CommandDispatcher.h"
-#include "HookEvent.h"
-
-// i broke something and now it doesnt like wWinMain, so now main
 int Runner::Start(const LPWSTR apcCmdLine)
 {
     auto [argc, argv] = ParseCommandLine(apcCmdLine);
     Dashboard::Init(argc, argv.data());
 
-    std::thread([=]()
-    {
-        m_eventHandler->RegisterEvent<HookEvent>([](const HookEvent& acEvent)
+    std::thread(
+        [&]()
         {
-            Log::Get()->Print("Registered {}", typeid(HookEvent).name());
-        });
-        m_eventHandler->Start();
-
-    }).detach();
+            m_eventHandler = std::make_unique<EventHandler>("BO3TK_dll", "BO3TK_exe", true);
+            while (!m_eventHandler->Run())
+            {
+                Log::Get()->Error("Disconnected from EventHandler...");
+                std::this_thread::sleep_for(std::chrono::milliseconds(m_eventHandler->SleepDuration));
+            }
+        })
+        .detach();
 
     CreateDashboardComponents();
 
@@ -90,23 +86,21 @@ void Runner::OnLaunchButtonPress(Button* apButton)
                     while (exitCode == STILL_ACTIVE)
                     {
                         std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-                        if (!GetExitCodeProcess(hProcess, &exitCode))
-                        {
-                            break;
-                        }
+                        if (!GetExitCodeProcess(hProcess, &exitCode)) { break; }
                     }
 
-                    QMetaObject::invokeMethod(apButton, [=]
-                    {
-                        if (!apButton->IsAnimating())
+                    QMetaObject::invokeMethod(
+                        apButton,
+                        [=]
                         {
-                            apButton->AnimateToOriginal();
-                        }
-                    }, Qt::QueuedConnection);
+                            if (!apButton->IsAnimating()) { apButton->AnimateToOriginal(); }
+                        },
+                        Qt::QueuedConnection);
 
                     CloseHandle(hProcess);
                     CloseHandle(hThread);
-                }).detach();
+                })
+                .detach();
 
             NotificationManager::ShowNotification(QString("Successfully launched & injected"), Dashboard::Window);
         }
@@ -114,10 +108,7 @@ void Runner::OnLaunchButtonPress(Button* apButton)
         {
             apButton->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
 
-            QTimer::singleShot(3000, apButton, [apButton]()
-            {
-                AnimateButton(apButton);
-            });
+            QTimer::singleShot(3000, apButton, [apButton]() { AnimateButton(apButton); });
         }
     }
     else
@@ -130,10 +121,7 @@ void Runner::OnLaunchButtonPress(Button* apButton)
 
         apButton->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
 
-        QTimer::singleShot(3000, apButton, [apButton]()
-        {
-            AnimateButton(apButton);
-        });
+        QTimer::singleShot(3000, apButton, [apButton]() { AnimateButton(apButton); });
     }
 }
 
@@ -153,10 +141,7 @@ void Runner::CreateDashboardComponents()
 
     // BO3E button
     const QPointer cLaunchButton = Dashboard::CreateComponent<Button>("BO3Enhanced", Dashboard::Window);
-    cLaunchButton->OnPress += [=]
-    {
-        OnLaunchButtonPress(cLaunchButton);
-    };
+    cLaunchButton->OnPress += [=] { OnLaunchButtonPress(cLaunchButton); };
     Dashboard::Layout->addWidget(cLaunchButton);
 
     // Game Path
@@ -186,10 +171,7 @@ void Runner::CreateDashboardComponents()
             gamePathInputField->width() - cGameBrowseButton->width() - 4,
             (gamePathInputField->height() - cGameBrowseButton->height()) / 2);
     };
-    cGameBrowseButton->OnFileSelect += [=](const QString& acPath)
-    {
-        gamePathInputField->setText(acPath);
-    };
+    cGameBrowseButton->OnFileSelect += [=](const QString& acPath) { gamePathInputField->setText(acPath); };
 
     QObject::connect(
         gamePathInputField, &QLineEdit::textChanged,
@@ -229,10 +211,7 @@ void Runner::CreateDashboardComponents()
             dllPathInputField->width() - cDllBrowseButton->width() - 4,
             (dllPathInputField->height() - cDllBrowseButton->height()) / 2);
     };
-    cDllBrowseButton->OnFileSelect += [=](const QString& acPath)
-    {
-        dllPathInputField->setText(acPath);
-    };
+    cDllBrowseButton->OnFileSelect += [=](const QString& acPath) { dllPathInputField->setText(acPath); };
 
     QObject::connect(
         dllPathInputField, &QLineEdit::textChanged,
@@ -260,13 +239,17 @@ void Runner::CreateDashboardComponents()
     const QPointer cHooksLayout = new QVBoxLayout(Dashboard::Window);
     cHooksLayout->addWidget(cHooksLabel);
 
-    m_hookButtons.push_back(new HookButton{ new FuncHook("Fake Hook 1", 0x10, 0x11), nullptr });
-    m_hookButtons.push_back(new HookButton{ new FuncHook("Fake Hook 2", 0x20, 0x21), nullptr });
-    m_hookButtons.push_back(new HookButton{ new FuncHook("Fake Hook 3", 0x30, 0x31), nullptr });
-    m_hookButtons.push_back(new HookButton{ new FuncHook("Fake Hook 4", 0x40, 0x41), nullptr });
-    m_hookButtons.push_back(new HookButton{ new FuncHook("Fake Hook 5", 0x50, 0x51), nullptr });
+    m_hookButtons.push_back(new HookButton<>{new FuncHook("Com_PrintMessage", 0x220F4F0), nullptr});
+    m_hookButtons.push_back(new HookButton<>{new FuncHook("Com_Error", 0x13DF170), nullptr});
+    m_hookButtons.push_back(new HookButton<>{new FuncHook("Com_HashString", 0x2210B90), nullptr});
+    m_hookButtons.push_back(new HookButton<>{new FuncHook("Dvar_SetFromStringByName", 0x23ABA90), nullptr});
+    m_hookButtons.push_back(new HookButton<>{new FuncHook("Dvar_RegisterNew", 0x23A6870), nullptr});
+    m_hookButtons.push_back(new HookButton<>{new FuncHook("RegisterLuaEnums", 0x200BCC0), nullptr});
+    m_hookButtons.push_back(new HookButton<>{new FuncHook("lua_pcall", 0x1E54EF0), nullptr});
+    m_hookButtons.push_back(new HookButton<>{new FuncHook("PLmemcpy", 0x23B46F0), nullptr});
+    m_hookButtons.push_back(new HookButton<>{new LibHook("user32.dll", "MessageBoxA"), nullptr});
 
-    for (HookButton* button : m_hookButtons)
+    for (HookButton<>* button : m_hookButtons)
     {
         button->Checkbox = new QCheckBox(button->Hook->Name.c_str(), Dashboard::Window);
         button->Checkbox->setChecked(button->Hook->Enabled);
@@ -293,30 +276,24 @@ void Runner::CreateDashboardComponents()
             }
         )");
 
-        QObject::connect(button->Checkbox, &QCheckBox::toggled, [=](const bool acChecked)
-        {
-            button->Hook->Enabled = acChecked;
-
-            if (acChecked)
+        QObject::connect(
+            button->Checkbox, &QCheckBox::toggled,
+            [this, button](bool aChecked)
             {
+                if (!m_eventHandler || !m_eventHandler->WritePipe->Connected) return;
 
-                /*if (g_eventHandler)
+                HookPayload payload{.Type = button->Hook->Type, .Enabled = aChecked};
+
+                strncpy_s(payload.FuncName, button->Hook->Name.data(), button->Hook->Name.length());
+
+                if (payload.Type == HookType::Library)
                 {
-                    HookEvent hookEvent(*button->Hook);
-                    g_eventHandler->Send(hookEvent);
-                }*/
-            }
-            else
-            {
-                //DisableHook(hook.Target);
-            }
+                    const LibHook* cpLib = dynamic_cast<LibHook*>(button->Hook);
+                    strncpy_s(payload.LibName, cpLib->LibName.data(), cpLib->Name.length());
+                }
 
-            NotificationManager::ShowNotification(
-                (button->Hook->Name + (button->Hook->Enabled ? " enabled" : " disabled")).c_str(),
-                Dashboard::Window);
-
-            //Dashboard::Settings->setValue(QString("HookEnabled_%1").arg(hook->Name.c_str()), acChecked);
-        });
+                m_eventHandler->Send(HookEvent(payload));
+            });
 
         cHooksLayout->addWidget(button->Checkbox);
     }
@@ -333,10 +310,7 @@ void Runner::CreateDashboardComponents()
     SetWindowPos(cDashboardWindow, nullptr, 0, 0, 0, 0, SWP_NOSIZE);
 }
 
-void Runner::AnimateButton(Button* apButton) 
+void Runner::AnimateButton(Button* apButton)
 {
-    if (!apButton->IsAnimating())
-    {
-        apButton->AnimateToOriginal();
-    }
+    if (!apButton->IsAnimating()) { apButton->AnimateToOriginal(); }
 }

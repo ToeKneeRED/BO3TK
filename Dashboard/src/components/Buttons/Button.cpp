@@ -71,8 +71,7 @@ void Button::AnimateBackground(const QColor& acTarget, const int acDuration)
 {
     m_isBackgroundAnimating = true;
 
-    if (m_backgroundAnimation->state() == QAbstractAnimation::Running)
-        m_backgroundAnimation->stop();
+    if (m_backgroundAnimation->state() == QAbstractAnimation::Running) m_backgroundAnimation->stop();
 
     m_backgroundAnimation->setDuration(acDuration);
     m_backgroundAnimation->setEndValue(acTarget);
@@ -84,8 +83,7 @@ void Button::AnimateText(const QColor& acTarget, const int acDuration)
 {
     m_isTextAnimating = true;
 
-    if (m_textAnimation->state() == QAbstractAnimation::Running)
-        m_textAnimation->stop();
+    if (m_textAnimation->state() == QAbstractAnimation::Running) m_textAnimation->stop();
 
     m_textAnimation->setDuration(acDuration);
     m_textAnimation->setEndValue(acTarget);

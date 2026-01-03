@@ -1,4 +1,4 @@
-set_project("Black Ops III Toe Knee")
+set_project("Black Ops III Tool Kit")
 set_version("0.0.1")
 
 set_languages("c11", "cxx23")

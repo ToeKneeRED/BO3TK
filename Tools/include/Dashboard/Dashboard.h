@@ -33,10 +33,7 @@ struct Dashboard
         Window->show();
     }
 
-    static int Run()
-    {
-        return QApplication::exec();
-    }
+    static int Run() { return QApplication::exec(); }
 
     static void SetIcon(const QIcon& acIcon) { Window->setWindowIcon(acIcon); }
 

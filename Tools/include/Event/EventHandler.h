@@ -6,16 +6,31 @@
 #include <atomic>
 #include <memory>
 
+#include "IEventBase.h"
 #include "Event.h"
 #include "Log.h"
-#include "IEventBase.h"
 
 #pragma pack(push, 1)
-struct EventHeader {
+struct EventHeader
+{
     size_t TypeHash;
     size_t DataSize;
 };
 #pragma pack(pop)
+
+struct EventPipe
+{
+    EventPipe() = default;
+    explicit EventPipe(const std::string& acName)
+        : Name(acName)
+    {
+    }
+
+    std::string Name{""};
+    HANDLE Handle{nullptr};
+    std::thread Thread{};
+    std::atomic<bool> Connected{false};
+};
 
 struct EventHandler
 {
@@ -27,9 +42,13 @@ struct EventHandler
     };
     template <typename F> using FuncArgType = typename FuncArg<decltype(&F::operator())>::Type;
 
-    explicit EventHandler(const std::string& acPipeName)
-        : m_pipeName(std::move(R"(\\.\pipe\)" + acPipeName))
+    explicit EventHandler(
+        const std::string& acWritePipeName = "", const std::string& acReadPipeName = "", const bool acFirst = false)
     {
+        WritePipe = std::make_unique<EventPipe>(R"(\\.\pipe\)" + acWritePipeName);
+        ReadPipe = std::make_unique<EventPipe>(R"(\\.\pipe\)" + acReadPipeName);
+
+        acFirst ? CreateFirst() : CreateSecond();
     }
     EventHandler(const EventHandler&) = delete;
     EventHandler(EventHandler&&) = delete;
@@ -37,129 +56,152 @@ struct EventHandler
     EventHandler& operator=(EventHandler&&) = delete;
     ~EventHandler() { Stop(); }
 
+    void CreateFirst() const
+    {
+        WritePipe->Handle = CreateNamedPipeA(
+            WritePipe->Name.c_str(), PIPE_ACCESS_OUTBOUND, PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT, 1,
+            1024, 1024, 0, nullptr);
+        ConnectNamedPipe(WritePipe->Handle, nullptr);
+        WritePipe->Connected = true;
+
+        WaitNamedPipeA(ReadPipe->Name.c_str(), NMPWAIT_WAIT_FOREVER);
+        ReadPipe->Handle = CreateFileA(ReadPipe->Name.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+        ReadPipe->Connected = true;
+    }
+
+    void CreateSecond() const
+    {
+        ReadPipe->Handle = CreateFileA(ReadPipe->Name.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+        ReadPipe->Connected = true;
+
+        WritePipe->Handle = CreateNamedPipeA(
+            WritePipe->Name.c_str(), PIPE_ACCESS_OUTBOUND, PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT, 1,
+            1024, 1024, 0, nullptr);
+        ConnectNamedPipe(WritePipe->Handle, nullptr);
+        WritePipe->Connected = true;
+    }
+
     void Start()
     {
-        if (Running)
-            return;
-
-        m_pipe = CreateNamedPipeA(
-            m_pipeName.c_str(),
-            PIPE_ACCESS_DUPLEX,
-            PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-            1, 1024, 1024, 0, nullptr);
-
-        if (m_pipe == INVALID_HANDLE_VALUE)
+        if (!WritePipe->Connected)
         {
-            Log::Get()->Print("Pipe already created, creating file");
-            m_pipe = CreateFileA(m_pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 
-                    0, nullptr, OPEN_EXISTING, 0, nullptr);
-
-            if (m_pipe)
-            {
-                Log::Get()->Print("Connected");
-                Running = true;
-            }
-            else
-            {
-                char buf[256];
-                FormatMessageA(
-                    FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(),
-                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(char)), nullptr);
-                Log::Get()->Error("Failed pipe creation: {} {}", m_pipeName.c_str(), buf);
-                return;
-            }
-        }
-
-        Log::Get()->Print("Running ConnectNamedPipe");
-
-        if (!ConnectNamedPipe(m_pipe, nullptr))
-        {
-            if (const DWORD cErr = GetLastError(); cErr == ERROR_PIPE_CONNECTED)
-            {
-                Log::Get()->Print("Connected");
-                Running = true;
-            }
-        }
-        else
-        {
-            Running = true;
-            Log::Get()->Print("Connected");
-        }
-
-        Log::Get()->Print("Finished ConnectNamedPipe");
-        Log::Get()->Print("Running: {}", Running ? "true" : "false");
-
-        //m_thread = std::thread([this]
-        //{
-            while (Running)
-            {
-                Log::Get()->Print("running...");
-                EventHeader header{};
-                DWORD read = 0;
-
-                Log::Get()->Print("reading file for header");
-                if (!ReadFile(m_pipe, &header, sizeof(EventHeader), &read, nullptr))
-                    continue;
-
-                Log::Get()->Print("read file for header");
-                std::vector<char> buffer(header.DataSize);
-                Log::Get()->Print("reading file for data");
-                ReadFile(m_pipe, buffer.data(), header.DataSize, &read, nullptr);
-                Log::Get()->Print("read file for data");
-
-                if (auto it = m_handlers.find(header.TypeHash); it != m_handlers.end())
+            std::thread(
+                [&]()
                 {
-                    if (auto iter = std::ranges::find(buffer, '\0'); iter != buffer.end()) {
-                        buffer.resize(std::distance(buffer.begin(), iter));
+                    if (!ConnectNamedPipe(WritePipe->Handle, nullptr))
+                    {
+                        if (const DWORD cErr = GetLastError(); cErr == ERROR_PIPE_CONNECTED)
+                        {
+                            WritePipe->Connected = true;
+                        }
                     }
-                    it->second(buffer.data(), buffer.size());
-                }
-                else
+                    else { WritePipe->Connected = true; }
+                })
+                .detach();
+        }
+
+        if (!ReadPipe->Connected)
+        {
+            std::thread(
+                [&]()
                 {
-                    Log::Get()->Warn("No handler registered for event type {}", header.TypeHash);
+                    if (!ConnectNamedPipe(ReadPipe->Handle, nullptr))
+                    {
+                        if (const DWORD cErr = GetLastError(); cErr == ERROR_PIPE_CONNECTED)
+                        {
+                            ReadPipe->Connected = true;
+                        }
+                    }
+                    else { ReadPipe->Connected = true; }
+                })
+                .detach();
+        }
+
+        m_started = true;
+    }
+
+    bool Run()
+    {
+        if (!m_started) { Start(); }
+
+        ReadPipe->Thread = std::thread(
+            [&]()
+            {
+                while (ReadPipe->Connected)
+                {
+                    EventHeader header{};
+                    DWORD read = 0;
+
+                    if (!ReadFile(ReadPipe->Handle, &header, sizeof(EventHeader), &read, nullptr))
+                    {
+                        if (m_retryCount > MaxRetryAttempts)
+                        {
+                            Log::Get()->Print("Max retry attempts reached, aborting...");
+
+                            Stop();
+                            return false;
+                        }
+
+                        m_retryCount++;
+                        Log::Get()->Warn("Retry {}", m_retryCount);
+
+                        std::this_thread::sleep_for(std::chrono::milliseconds(SleepDuration));
+                        continue;
+                    }
+
+                    std::vector<uint8_t> buffer(header.DataSize);
+
+                    if (!ReadFile(ReadPipe->Handle, buffer.data(), header.DataSize, &read, nullptr))
+                    {
+                        Log::Get()->Warn("Failed to read data");
+                        continue;
+                    }
+
+                    if (auto it = m_callbacks.find(header.TypeHash); it != m_callbacks.end())
+                    {
+                        auto callback = it->second;
+                        auto buf = buffer;
+
+                        std::thread([callback, data = std::move(buf)]() { callback(data.data(), data.size()); })
+                            .detach();
+                    }
+                    else { Log::Get()->Warn("No callbacks for event type {}", header.TypeHash); }
+
+                    std::this_thread::sleep_for(std::chrono::milliseconds(SleepDuration));
                 }
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(SleepDuration));
-            }
-        //});
+                return true;
+            });
+        ReadPipe->Thread.detach();
+
+        Running = true;
+
+        return true;
     }
 
     void Stop()
     {
         Running = false;
-
-        if (m_thread.joinable())
-            m_thread.join();
+        m_started = false;
     }
 
-    template <typename T>
-    void RegisterEvent(std::function<void(const T&)> aHandler)
+    template <typename T = Event> void AddCallback(std::function<void(const typename T::DataType&)> aCallback)
     {
         const size_t cHash = std::hash<std::string>{}(typeid(T).name());
-        m_handlers[cHash] = [aHandler](const void* apData, const size_t acSize)
+
+        m_callbacks[cHash] = [aCallback](const void* apData, size_t acSize)
         {
-            if constexpr (std::is_trivially_copyable_v<T>)
-            {
-                T data{};
-                memcpy(&data, apData, min(acSize, sizeof(T)));
-                aHandler(data);
-            }
-            else
-            {
-                T data{};
-                memcpy(&data, apData, min(acSize, sizeof(T)));
-                aHandler(data);
-            }
+            typename T::DataType data;
+            memcpy(&data, apData, sizeof(T::DataType));
+            aCallback(data);
         };
     }
 
-    template<typename T = IEventBase>
-    void Send(const T& acEvent) const
+    template <typename T = IEventBase> void Send(const T& acEvent) const
     {
-        const size_t typeHash = std::hash<std::string>{}(typeid(T).name());
-
-        const void* pData = nullptr;
-        size_t dataSize = 0;
+        const size_t cTypeHash = std::hash<std::string>{}(typeid(T).name());
+        const void* pData;
+        size_t dataSize;
 
         if constexpr (std::is_base_of_v<IEventBase, T>)
         {
@@ -172,31 +214,29 @@ struct EventHandler
             dataSize = sizeof(T);
         }
 
-        if (!pData || !dataSize)
-            return;
+        if (!pData || !dataSize) return;
 
-        const EventHeader cHeader {.TypeHash = typeHash, .DataSize = static_cast<uint32_t>(dataSize) };
+        const EventHeader cHeader{.TypeHash = cTypeHash, .DataSize = static_cast<uint32_t>(dataSize)};
         DWORD written = 0;
 
-        if(!m_pipe) 
+        if (!WritePipe)
         {
             Log::Get()->Error("Attempting to send without pipe connected");
+            return;
         }
 
-        Log::Get()->Print("writing");
-        WriteFile(m_pipe, &cHeader, sizeof(EventHeader), &written, nullptr);
-        Log::Get()->Print("wrote header");
-        WriteFile(m_pipe, pData, (DWORD)dataSize, &written, nullptr);
-        Log::Get()->Print("wrote data");
+        WriteFile(WritePipe->Handle, &cHeader, sizeof(EventHeader), &written, nullptr);
+        WriteFile(WritePipe->Handle, pData, static_cast<DWORD>(dataSize), &written, nullptr);
     }
 
     uint32_t SleepDuration = 250;
+    uint16_t MaxRetryAttempts = 3;
     std::atomic<bool> Running{false};
+    std::unique_ptr<EventPipe> WritePipe{};
+    std::unique_ptr<EventPipe> ReadPipe{};
 
 private:
-    std::string m_pipeName;
-    HANDLE m_pipe{};
-    std::unordered_map<uint32_t, std::function<void(const void*, size_t)>> m_handlers;
-    std::thread m_thread;
-    std::vector<IEventBase*> m_eventsToRegister{};
+    std::unordered_map<size_t, std::function<void(const void* acpData, size_t aDataSize)>> m_callbacks{};
+    uint16_t m_retryCount{0};
+    std::atomic<bool> m_started{false};
 };
