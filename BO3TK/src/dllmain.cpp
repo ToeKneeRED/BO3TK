@@ -85,7 +85,6 @@ static void MainThread()
         Log::Get()->Print("{}Present hooked", NarrowText::Foreground::Green);
     }
 }
-
 static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call)
@@ -110,37 +109,63 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
 
                         std::this_thread::sleep_for(std::chrono::milliseconds(300));
                     }
-                }).detach();
+                })
+                .detach();
             std::thread(
                 [=]()
                 {
                     s_eventHandler->AddCallback<HookEvent>(
                         [](const HookPayload& acData)
                         {
+                            const std::unique_ptr<IHook> cpHook = std::make_unique<IHook>(
+                                acData.Type, acData.FuncName, acData.Target, acData.Detour, nullptr, acData.Enabled);
                             switch (acData.Type)
                             {
-                                case HookType::Function: Log::Get()->Print(
-                                        "[HookEvent<FuncHook>] {}: {}", acData.FuncName, acData.Enabled);
+                                case HookType::Function:
+                                    Log::Get()->Print("[HookEvent<FuncHook>] {}: {}", acData.FuncName, acData.Enabled);
                                     break;
 
-                                case HookType::Library: Log::Get()->Print(
+                                case HookType::Library:
+                                    Log::Get()->Print(
                                         "[HookEvent<LibHook>] {}\t{}: {}", acData.LibName, acData.FuncName,
                                         acData.Enabled);
+
+                                    cpHook->Target = reinterpret_cast<uintptr_t>(
+                                        GetProcAddress(GetModuleHandleA(acData.LibName), acData.FuncName));
+
                                     break;
                                 case HookType::None: break;
                             }
+
+                            if (const auto cIter = g_hookLookupMap.find(cpHook->Target); cIter != g_hookLookupMap.end())
+                            {
+                                if (cpHook->Target > reinterpret_cast<uintptr_t>(Exe::BaseModule))
+                                {
+                                    cpHook->Target -= reinterpret_cast<uintptr_t>(Exe::BaseModule);
+                                }
+                                cpHook->Detour = cIter->second.Detour;
+                                cpHook->Original = cIter->second.Original;
+
+                                if (HookFunction(std::move(cpHook)))
+                                {
+                                    Log::Get()->Print(
+                                        "{}: {}", acData.FuncName, acData.Enabled ? "enabled" : "disabled");
+                                }
+                            }
+                            else { Log::Get()->Error("Target function not found in lookup map"); }
                         });
                     while (!s_eventHandler->Run())
                     {
                         Log::Get()->Error("Disconnected from EventHandler...");
                         std::this_thread::sleep_for(std::chrono::milliseconds(s_eventHandler->SleepDuration));
                     }
-                }).detach();
+                })
+                .detach();
         }
         break;
         case DLL_THREAD_ATTACH:
         case DLL_THREAD_DETACH:
-        case DLL_PROCESS_DETACH: 
+        case DLL_PROCESS_DETACH:
             if (g_stop)
             {
                 MH_DisableHook(MH_ALL_HOOKS);

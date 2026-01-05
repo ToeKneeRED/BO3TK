@@ -1,14 +1,45 @@
 ﻿#pragma once
-#include <d3d11.h>
 #include <Winternl.h>
+#include <dbghelp.h>
+#include <d3d11.h>
+
+#include "HookEvent.h"
+#include "MinHook.h"
 #include "ImGuiService.h"
 #include "Log.h"
-#include "MinHook.h"
 #include "structs.h"
 
-#include <dbghelp.h>
-
 #pragma comment(lib, "dbghelp.lib")
+
+#define OFFSET(offset) (*(uint64_t*)((uint64_t)(NtCurrentTeb()->ProcessEnvironmentBlock) + 0x10) + (uint64_t)(offset))
+
+namespace
+{
+#define FUNC_HOOK(name, target)                                           \
+    {                                                                     \
+        target, { (uintptr_t) & Hooks::h##name, (void**)&Hooks::o##name } \
+    }
+#define LIB_HOOK(libName, funcName)                                                        \
+    {                                                                                      \
+        reinterpret_cast<uintptr_t>(GetProcAddress(GetModuleHandleA(libName), #funcName)), \
+        {                                                                                  \
+            (uintptr_t)&Hooks::h##funcName, (void**)&Hooks::o##funcName                    \
+        }                                                                                  \
+    }
+} // namespace
+
+struct Hook
+{
+    Hook() = default;
+    Hook(const uintptr_t& acDetour, void** apOriginal)
+        : Original(apOriginal)
+        , Detour(acDetour)
+    {
+    }
+
+    void** Original{};
+    uintptr_t Detour{};
+};
 
 namespace Exe
 {
@@ -26,55 +57,6 @@ inline ID3D11DeviceContext* g_pContext = nullptr;
 inline ID3D11RenderTargetView* g_mainRenderTargetView;
 inline ImGuiService* g_imguiService = nullptr;
 
-#define OFFSET(offset) (*(uint64_t*)((uint64_t)(NtCurrentTeb()->ProcessEnvironmentBlock) + 0x10) + (uint64_t)(offset))
-
-#define CREATE_HOOK(offset, detour, original)                                                 \
-    g_status = MH_CreateHook((void*)(OFFSET(offset)), (LPVOID) & detour, (LPVOID*)&original); \
-    if (g_status != MH_OK)                                                                    \
-    {                                                                                         \
-        Log::Get()->Error(                                                                    \
-            "{}Failed to create hook for 0x{:X} {}", NarrowText::Foreground::Red, offset,     \
-            MH_StatusToString(g_status));                                                     \
-    }                                                                                         \
-    else { Log::Get()->Print(L"{}Hook created: 0x{:X}", WideText::Foreground::Green, offset); }
-
-#define ENABLE_HOOK(offset)                                                               \
-    g_status = MH_EnableHook((LPVOID)(OFFSET(offset)));                                   \
-    if (g_status != MH_OK)                                                                \
-    {                                                                                     \
-        Log::Get()->Error(                                                                \
-            "{}Failed to enable hook for 0x{:X} {}", NarrowText::Foreground::Red, offset, \
-            MH_StatusToString(g_status));                                                 \
-    }                                                                                     \
-    else { Log::Get()->Print(L"{}Hook enabled: 0x{:X}", WideText::Foreground::Green, offset); }
-
-//#define FUNC_HOOK(offset, funcName)                             \
-//    CREATE_HOOK(offset, Hooks::h##funcName, Hooks::o##funcName) \
-//    ENABLE_HOOK(offset) \
-
-#define FUNC_HOOK(offset, funcName) CREATE_HOOK(offset, Hooks::h##funcName, Hooks::o##funcName)
-
-#define LIB_HOOK(lib, function, detour, original)                                                \
-    {                                                                                            \
-        HMODULE module = GetModuleHandleA(lib);                                                  \
-        if (!module) module = LoadLibraryA(lib);                                                 \
-        if (module)                                                                              \
-        {                                                                                        \
-            void* target = GetProcAddress(module, #function);                                    \
-            if (target)                                                                          \
-            {                                                                                    \
-                if (MH_CreateHook(target, detour, reinterpret_cast<LPVOID*>(original)) == MH_OK) \
-                {                                                                                \
-                    MH_EnableHook(target);                                                       \
-                    Log::Get()->Print("[Hook] {}", #function);                                   \
-                }                                                                                \
-                else { Log::Get()->Error("[Hook] Failed to create {}", #function); }             \
-            }                                                                                    \
-            else { Log::Get()->Error("[Hook] Failed to find {}", #function); }                   \
-        }                                                                                        \
-        else { Log::Get()->Error("[Hook] Failed to find {}", lib); }                             \
-    }
-
 // Need to find base ptr
 struct Player
 {
@@ -87,8 +69,8 @@ struct Player
 // BO3Enhanced
 namespace BO3E
 {
-// static bool* IsInGame = reinterpret_cast<bool*>(OFFSET(0x31E1930)); // scoreboard value?
-static bool* IsInGame = reinterpret_cast<bool*>(OFFSET(0x8DE3D00));
+static bool* IsInGame = reinterpret_cast<bool*>(OFFSET(0x31E1930)); // scoreboard value?
+// static bool* IsInGame = reinterpret_cast<bool*>(OFFSET(0x8DE3D00));
 static uint32_t* ZombiesAlive = reinterpret_cast<uint32_t*>(OFFSET(0x9A1B6AC));
 static Player LocalPlayer = {
     .Name = reinterpret_cast<const char*>(OFFSET(0x3B07498)),
@@ -108,20 +90,6 @@ static ugcinfo_entry_wstor* currently_loaded_mod = reinterpret_cast<ugcinfo_entr
 static lua_State* luaVM = nullptr;
 
 } // namespace BO3E
-
-template <typename T> MH_STATUS CreateHook(LPVOID pTarget, LPVOID pDetour, T** ppOriginal)
-{
-    return MH_CreateHook(pTarget, pDetour, reinterpret_cast<LPVOID*>(ppOriginal));
-}
-
-inline MH_STATUS EnableHook(LPVOID pTarget)
-{
-    ENABLE_HOOK(pTarget)
-
-    return g_status;
-}
-
-inline MH_STATUS DisableHook(LPVOID pTarget) { return MH_DisableHook(pTarget); }
 
 namespace Hooks
 {
@@ -236,9 +204,9 @@ inline __int64 hRegisterLuaEnums(lua_State* luaVM)
     return oRegisterLuaEnums(luaVM);
 }
 
-#define Com_Error(code, fmt, ...)                                                              \
-    ((void(__fastcall*)(const char*, uint32_t, uint32_t, const char*, ...))OFFSET(0x2210B90))( \
-        "", 0, code, fmt, __VA_ARGS__)
+//#define Com_Error(code, fmt, ...)                                                              \
+//    ((void(__fastcall*)(const char*, uint32_t, uint32_t, const char*, ...))OFFSET(0x2210B90))( \
+//        "", 0, code, fmt, __VA_ARGS__)
 typedef void(__fastcall* Com_Error_t)(const char*, int, unsigned int, const char*, ...);
 inline Com_Error_t oCom_Error = nullptr;
 inline void hCom_Error(const char* a1, int a2, unsigned int a3, const char* a4, ...)
@@ -554,3 +522,44 @@ inline HRESULT __stdcall HookPresent(IDXGISwapChain* pSwapChain, UINT SyncInterv
     return OriginalPresent(pSwapChain, SyncInterval, Flags);
 }
 } // namespace Hooks
+
+const static std::unordered_map<uintptr_t, Hook> g_hookLookupMap{
+    FUNC_HOOK(Com_PrintMessage, 0x220F4F0), FUNC_HOOK(Com_Error, 0x13DF170),
+    FUNC_HOOK(Com_HashString, 0x2210B90),   FUNC_HOOK(Dvar_SetFromStringByName, 0x23ABA90),
+    FUNC_HOOK(Dvar_RegisterNew, 0x23A6870), FUNC_HOOK(RegisterLuaEnums, 0x200BCC0),
+    FUNC_HOOK(lua_pcall, 0x1E54EF0),        FUNC_HOOK(PLmemcpy, 0x23B46F0),
+    LIB_HOOK("user32.dll", MessageBoxA),
+};
+static std::vector<uintptr_t> g_createdHookTargets{};
+
+static bool HookFunction(const std::unique_ptr<IHook>& acpHook)
+{
+    if (const auto cIter = std::ranges::find(g_createdHookTargets, acpHook->Target);
+        cIter == g_createdHookTargets.end())
+    {
+        g_status = MH_CreateHook(
+            reinterpret_cast<void*>((OFFSET(acpHook->Target))), reinterpret_cast<void*>(acpHook->Detour),
+            acpHook->Original);
+        if (g_status != MH_OK)
+        {
+            Log::Get()->Error(
+                "{}Failed to create hook for 0x{:X} {}\t(0x{:X})", NarrowText::Foreground::Red, acpHook->Target,
+                MH_StatusToString(g_status), OFFSET(acpHook->Target));
+            return false;
+        }
+
+        g_createdHookTargets.push_back(acpHook->Target);
+    }
+
+    g_status = acpHook->Enabled ? MH_EnableHook(reinterpret_cast<void*>((OFFSET(acpHook->Target))))
+                                : MH_DisableHook(reinterpret_cast<void*>((OFFSET(acpHook->Target))));
+    if (g_status != MH_OK)
+    {
+        Log::Get()->Error(
+            "{}Failed to {} hook for 0x{:X} {}", NarrowText::Foreground::Red, acpHook->Enabled ? "enable" : "disable",
+            acpHook->Target, MH_StatusToString(g_status));
+        return false;
+    }
+
+    return true;
+}

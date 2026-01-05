@@ -15,6 +15,8 @@ struct HookPayload
 {
     HookType Type{};
     bool Enabled{};
+    uintptr_t Target{};
+    uintptr_t Detour{};
 
     char FuncName[64]{};
     char LibName[64]{};
@@ -33,7 +35,7 @@ struct IHook
 {
     explicit IHook(
         const HookType& acType = HookType::None, const std::string& acName = "", const uintptr_t& acTarget = 0,
-        const uintptr_t& acDetour = 0, void* apOriginal = nullptr, const bool& acEnabled = false)
+        const uintptr_t& acDetour = 0, void** apOriginal = nullptr, const bool& acEnabled = false)
         : Type(acType)
         , Name(acName)
         , Target(acTarget)
@@ -52,7 +54,7 @@ struct IHook
     std::string Name{};
     uintptr_t Target{};
     uintptr_t Detour{};
-    void* Original{};
+    void** Original{};
     bool Enabled{};
 };
 struct FuncHook : IHook

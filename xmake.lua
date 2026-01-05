@@ -30,7 +30,6 @@ if is_mode("debug") then
 end
 
 add_includedirs("Tools/include", {public = true})
-add_files("common/**.cpp")
 add_headerfiles("common/**.h")
 add_filegroups("common", {rootdir = "../common"})
 

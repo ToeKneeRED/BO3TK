@@ -231,7 +231,7 @@ void Runner::CreateDashboardComponents()
     Dashboard::Layout->addStretch();
 
     // Hooks
-    const QPointer cHooksLabel = new QLabel("Function Hooks");
+    const QPointer cHooksLabel = new QLabel("Hooks");
     cHooksLabel->setStyleSheet("color: #ffffff");
     cHooksLabel->setFont(QFont("Jetbrains Mono NL Semibold", 10));
     cHooksLabel->setAlignment(Qt::AlignHCenter);
@@ -278,12 +278,15 @@ void Runner::CreateDashboardComponents()
 
         QObject::connect(
             button->Checkbox, &QCheckBox::toggled,
-            [this, button](bool aChecked)
+            [this, button](const bool acChecked)
             {
                 if (!m_eventHandler || !m_eventHandler->WritePipe->Connected) return;
 
-                HookPayload payload{.Type = button->Hook->Type, .Enabled = aChecked};
-
+                HookPayload payload{
+                    .Type = button->Hook->Type,
+                    .Enabled = acChecked,
+                    .Target = button->Hook->Target,
+                    .Detour = button->Hook->Detour};
                 strncpy_s(payload.FuncName, button->Hook->Name.data(), button->Hook->Name.length());
 
                 if (payload.Type == HookType::Library)
