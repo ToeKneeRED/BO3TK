@@ -5,6 +5,7 @@
  ## Requirements
  - [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/)
  - [xmake](https://xmake.io/#/)
+ - [python](https://www.python.org/downloads/) (for clang-format.py)
 
  ## Build
  - run `build.bat`
@@ -15,10 +16,12 @@
  
  ## Generate Visual Studio solution
  - run `build.bat`
-
+ 
    or
+   
  - Navigate to the root `BO3TK` folder
- - `xmake project -k vsxmake` (.sln inside `vsxmake2022` directory)
+ - `xmake project -k vsxmake` (generates the solution)
+ - `xmake l project_deps.lua` (sets up the project dependencies for the solution)
 
  ## Options
  - `game`: Path to game exe (ex. `xmake f --game="C:\Path\To\Game\BlackOps3.exe"`)
