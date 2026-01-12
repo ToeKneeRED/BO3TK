@@ -9,7 +9,7 @@ struct Injector
     {
         if (acProcessId == 0 || !std::filesystem::exists(apDllPath))
         {
-            Log::Get()->Error("{} does not exist or invalid process ID", apDllPath);
+            LOG_ERROR("{} does not exist or invalid process ID", apDllPath);
             return FALSE;
         }
 
@@ -23,14 +23,14 @@ struct Injector
             FormatMessageA(
                 FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(),
                 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(char)), nullptr);
-            Log::Get()->Error("Failed to open process: {}", buf);
+            LOG_ERROR("Failed to open process: {}", buf);
             return FALSE;
         }
 
         const HMODULE cKernel32 = GetModuleHandleA("kernel32.dll");
         if (!cKernel32)
         {
-            Log::Get()->Error("Failed to get kernel32.dll handle");
+            LOG_ERROR("Failed to get kernel32.dll handle");
             CloseHandle(cProcess);
             return FALSE;
         }
@@ -38,7 +38,7 @@ struct Injector
         const LPVOID cLoadLibraryAddr = reinterpret_cast<LPVOID>(GetProcAddress(cKernel32, "LoadLibraryA"));
         if (!cLoadLibraryAddr)
         {
-            Log::Get()->Error("Failed to get LoadLibraryA address");
+            LOG_ERROR("Failed to get LoadLibraryA address");
             CloseHandle(cProcess);
             return FALSE;
         }
@@ -48,7 +48,7 @@ struct Injector
             VirtualAllocEx(cProcess, nullptr, cDllPathLen, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         if (!cRemoteString)
         {
-            Log::Get()->Error("VirtualAllocEx failed");
+            LOG_ERROR("VirtualAllocEx failed");
             CloseHandle(cProcess);
             return FALSE;
         }
@@ -64,9 +64,9 @@ struct Injector
                 CloseHandle(cRemoteThread);
                 result = TRUE;
             }
-            else { Log::Get()->Error("CreateRemoteThread failed"); }
+            else { LOG_ERROR("CreateRemoteThread failed"); }
         }
-        else { Log::Get()->Error("WriteProcessMemory failed"); }
+        else { LOG_ERROR("WriteProcessMemory failed"); }
 
         VirtualFreeEx(cProcess, cRemoteString, 0, MEM_RELEASE);
         CloseHandle(cProcess);

@@ -2,9 +2,11 @@ target("BO3TK")
     set_kind("shared")
 
     set_pcxxheader("include/pch.h")
-    add_includedirs("include", {public = true})
-    add_files("src/*.cpp")
-    add_headerfiles("include/*.h")
+    -- add_includedirs("include", {public = true})
+    add_recursive_includes("include")
+
+    add_files("src/**.cpp")
+    add_headerfiles("include/**.h")
     add_extrafiles("src/*.asm")
 
     add_packages("minhook", "xbyak", "qt5base", "qt5core", "qt5gui", "qt5widgets", "imgui")

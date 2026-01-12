@@ -1686,7 +1686,6 @@ enum dvarType_t : i32
 
 union DvarLimits // 0x10 / 0x8
 {
-    // TODO: here
     uint8_t padding[16];
 };
 
@@ -1776,7 +1775,7 @@ struct centity_t // 0x808 / 0x8
     float lastMuzzleFlash;     // 0x5AC
     i32 numShotsFiredLast;     // 0x5B0
     ub1 pad_5B4[4];            // 0x5B4
-    // TODO: here
+    ub1 pad[0x808 - 0x5B4];
 };
 
 struct gentity_t

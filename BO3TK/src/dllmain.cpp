@@ -13,7 +13,7 @@
 #include "HookEvent.h"
 
 std::atomic g_stop = false;
-static std::shared_ptr<EventHandler> s_eventHandler = std::make_shared<EventHandler>("BO3TK_exe", "BO3TK_dll");
+static std::shared_ptr<EventHandler> g_pEventHandler = nullptr;
 
 typedef LONG(NTAPI* NtResumeThread_t)(HANDLE, PULONG);
 static void ResumeProcess(const DWORD acProcessId)
@@ -60,29 +60,30 @@ static void MainThread()
     }
     else
     {
-        Log::Get()->Print("mod info failed");
+        LOG_ERROR("Failed to retrieve module info");
         return;
     }
 
+    // need to wait for exe to get far enough along so it doesnt grab garbage
+    ResumeProcess(GetCurrentProcessId());
+
     if (ImGuiService::Test())
     {
-        // need to wait for exe to get far enough along so it doesnt grab garbage
-        ResumeProcess(GetCurrentProcessId());
-
         if (const MH_STATUS cStatus = MH_Initialize(); cStatus != MH_OK)
         {
-            Log::Get()->Error("Failed minhook initialize: {}", MH_StatusToString(cStatus));
+            LOG_ERROR("Failed minhook initialize: {}", MH_StatusToString(cStatus));
             return;
         }
 
-        do {
+        while (!Hooks::BindVTable(8, reinterpret_cast<void**>(&Hooks::OriginalPresent), &Hooks::HookPresent))
+        {
             if (g_stop) return;
 
-            Log::Get()->Print("{}Waiting for Present hook...", NarrowText::Foreground::Yellow);
+            LOG_INFO("{}Waiting for Present hook...", NarrowText::Foreground::Yellow);
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
-        } while (!Hooks::BindVTable(8, reinterpret_cast<void**>(&Hooks::OriginalPresent), &Hooks::HookPresent));
+        }
 
-        Log::Get()->Print("{}Present hooked", NarrowText::Foreground::Green);
+        LOG_INFO("{}Present hooked", NarrowText::Foreground::Green);
     }
 }
 static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -102,7 +103,7 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
                         if (GetAsyncKeyState(VK_END) & 0x01)
                         {
                             spdlog::default_logger()->flush();
-                            Log::Get()->Print("Exiting...");
+                            LOG_PRINT("Exiting...");
 
                             g_stop = true;
                         }
@@ -114,19 +115,20 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
             std::thread(
                 [=]()
                 {
-                    s_eventHandler->AddCallback<HookEvent>(
-                        [](const HookPayload& acData)
+                    g_pEventHandler = std::make_shared<EventHandler>("BO3TK_exe", "BO3TK_dll");
+                    g_pEventHandler->AddCallback<HookEvent>(
+                        [](const HookData& acData)
                         {
                             const std::unique_ptr<IHook> cpHook = std::make_unique<IHook>(
                                 acData.Type, acData.FuncName, acData.Target, acData.Detour, nullptr, acData.Enabled);
                             switch (acData.Type)
                             {
                                 case HookType::Function:
-                                    Log::Get()->Print("[HookEvent<FuncHook>] {}: {}", acData.FuncName, acData.Enabled);
+                                    LOG_PRINT("[HookEvent<FuncHook>] {}: {}", acData.FuncName, acData.Enabled);
                                     break;
 
                                 case HookType::Library:
-                                    Log::Get()->Print(
+                                    LOG_PRINT(
                                         "[HookEvent<LibHook>] {}\t{}: {}", acData.LibName, acData.FuncName,
                                         acData.Enabled);
 
@@ -134,7 +136,7 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
                                         GetProcAddress(GetModuleHandleA(acData.LibName), acData.FuncName));
 
                                     break;
-                                case HookType::None: break;
+                                case HookType::None: return;
                             }
 
                             if (const auto cIter = g_hookLookupMap.find(cpHook->Target); cIter != g_hookLookupMap.end())
@@ -148,16 +150,16 @@ static BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD ul_reason_for_ca
 
                                 if (HookFunction(std::move(cpHook)))
                                 {
-                                    Log::Get()->Print(
+                                    LOG_PRINT(
                                         "{}: {}", acData.FuncName, acData.Enabled ? "enabled" : "disabled");
                                 }
                             }
-                            else { Log::Get()->Error("Target function not found in lookup map"); }
+                            else { LOG_ERROR("Target function not found in lookup map"); }
                         });
-                    while (!s_eventHandler->Run())
+                    while (!g_pEventHandler->Run())
                     {
-                        Log::Get()->Error("Disconnected from EventHandler...");
-                        std::this_thread::sleep_for(std::chrono::milliseconds(s_eventHandler->SleepDuration));
+                        LOG_ERROR("Disconnected from EventHandler...");
+                        std::this_thread::sleep_for(std::chrono::milliseconds(g_pEventHandler->SleepDuration));
                     }
                 })
                 .detach();

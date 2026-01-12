@@ -136,14 +136,14 @@ struct EventHandler
                     {
                         if (m_retryCount > MaxRetryAttempts)
                         {
-                            Log::Get()->Print("Max retry attempts reached, aborting...");
+                            LOG_WARN("Max retry attempts reached, aborting...");
 
                             Stop();
                             return false;
                         }
 
                         m_retryCount++;
-                        Log::Get()->Warn("Retry {}", m_retryCount);
+                        LOG_WARN("Retry {}", m_retryCount);
 
                         std::this_thread::sleep_for(std::chrono::milliseconds(SleepDuration));
                         continue;
@@ -153,7 +153,7 @@ struct EventHandler
 
                     if (!ReadFile(ReadPipe->Handle, buffer.data(), header.DataSize, &read, nullptr))
                     {
-                        Log::Get()->Warn("Failed to read data");
+                        LOG_WARN("Failed to read data");
                         continue;
                     }
 
@@ -165,7 +165,7 @@ struct EventHandler
                         std::thread([callback, data = std::move(buf)]() { callback(data.data(), data.size()); })
                             .detach();
                     }
-                    else { Log::Get()->Warn("No callbacks for event type {}", header.TypeHash); }
+                    else { LOG_WARN("No callbacks for event type {}", header.TypeHash); }
 
                     std::this_thread::sleep_for(std::chrono::milliseconds(SleepDuration));
                 }
@@ -221,7 +221,7 @@ struct EventHandler
 
         if (!WritePipe)
         {
-            Log::Get()->Error("Attempting to send without pipe connected");
+            LOG_ERROR("Attempting to send without pipe connected");
             return;
         }
 

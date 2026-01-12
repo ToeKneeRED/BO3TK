@@ -11,7 +11,7 @@ enum class HookType : uint8_t
 };
 
 #pragma pack(push, 1)
-struct HookPayload
+struct HookData
 {
     HookType Type{};
     bool Enabled{};
@@ -23,10 +23,10 @@ struct HookPayload
 };
 #pragma pack(pop)
 
-struct HookEvent : Event<HookPayload>
+struct HookEvent : Event<HookData>
 {
-    HookEvent(const HookPayload& payload)
-        : Event(payload, "HookEvent")
+    HookEvent(const HookData& acData)
+        : Event(acData, "HookEvent")
     {
     }
 };

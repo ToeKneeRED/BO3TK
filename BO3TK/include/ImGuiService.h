@@ -5,6 +5,7 @@
 #include <dxgi.h>
 #include <d3d11.h>
 
+#include "EventHandler.h"
 #include "Log.h"
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);

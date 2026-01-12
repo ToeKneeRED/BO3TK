@@ -7,6 +7,7 @@
 #include "MinHook.h"
 #include "ImGuiService.h"
 #include "Log.h"
+#include "Com_PrintMessage.h"
 #include "structs.h"
 
 #pragma comment(lib, "dbghelp.lib")
@@ -70,7 +71,6 @@ struct Player
 namespace BO3E
 {
 static bool* IsInGame = reinterpret_cast<bool*>(OFFSET(0x31E1930)); // scoreboard value?
-// static bool* IsInGame = reinterpret_cast<bool*>(OFFSET(0x8DE3D00));
 static uint32_t* ZombiesAlive = reinterpret_cast<uint32_t*>(OFFSET(0x9A1B6AC));
 static Player LocalPlayer = {
     .Name = reinterpret_cast<const char*>(OFFSET(0x3B07498)),
@@ -97,8 +97,6 @@ inline uint64_t* MethodsTable = nullptr;
 
 static bool BindVTable(const uint16_t _index, void** _original, void* _function)
 {
-    Log* log = Log::Get();
-
     assert(_original != NULL && _function != NULL);
 
     void* target = reinterpret_cast<void*>(MethodsTable[_index]);
@@ -106,14 +104,14 @@ static bool BindVTable(const uint16_t _index, void** _original, void* _function)
     MH_STATUS status = MH_CreateHook(target, _function, _original);
     if (status != MH_OK)
     {
-        log->Error("Failed to create hook: {} : {}", _function, MH_StatusToString(status));
+        LOG_ERROR("Failed to create hook: {} : {}", _function, MH_StatusToString(status));
         return false;
     }
 
     status = MH_EnableHook(target);
     if (status != MH_OK)
     {
-        log->Error("Failed to enable hook: {} : {}", _function, MH_StatusToString(status));
+        LOG_ERROR("Failed to enable hook: {} : {}", _function, MH_StatusToString(status));
         return false;
     }
 
@@ -124,27 +122,18 @@ typedef int(WINAPI* MessageBoxA_t)(HWND, LPCSTR, LPCSTR, UINT);
 inline MessageBoxA_t oMessageBoxA = nullptr;
 inline int WINAPI hMessageBoxA(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT type)
 {
-    Log::Get()->Print("[MessageBoxA] {}", lpText);
+    LOG_PRINT("[MessageBoxA] {}", lpText);
 
     if (!strcmp(lpCaption, "Safe mode")) return IDNO; // i am lazy
 
     return oMessageBoxA(hWnd, lpText, lpCaption, type);
 }
 
-typedef void(__fastcall* Com_PrintMessage_t)(int, consoleLabel_e, const char*, int);
-inline Com_PrintMessage_t oCom_PrintMessage = nullptr;
-inline void __fastcall hCom_PrintMessage(int channel, consoleLabel_e label, const char* msg, int error)
-{
-    Log::Get()->Print("[Com_PrintMessage] {}", msg);
-
-    return oCom_PrintMessage(channel, label, msg, error);
-}
-
 typedef const char*(__fastcall* lua_pcall_t)(lua_State*, long, long);
 inline lua_pcall_t olua_pcall = nullptr;
 inline const char* hlua_pcall(lua_State* state, long nArgs, long nResults)
 {
-    Log::Get()->Print("[lua_pcall] 0x{:X}", (uintptr_t)state);
+    LOG_PRINT("[lua_pcall] 0x{:X}", (uintptr_t)state);
 
     return olua_pcall(state, nArgs, nResults);
 }
@@ -155,7 +144,7 @@ inline Dvar_RegisterNew_t oDvar_RegisterNew = nullptr;
 inline const char* hDvar_RegisterNew(
     unsigned int dvarName, dvarType_t type, unsigned int a3, unsigned int a4, void* a5, void* a6, __int64 a7)
 {
-    Log::Get()->Print("[Dvar_RegisterNew] 0x{:X} {}", dvarName, type);
+    LOG_PRINT("[Dvar_RegisterNew] 0x{:X} {}", dvarName, type);
 
     return oDvar_RegisterNew(dvarName, type, a3, a4, a5, a6, a7);
 }
@@ -165,10 +154,10 @@ inline Dvar_SetFromStringByName_t oDvar_SetFromStringByName = nullptr;
 inline dvar_t* hDvar_SetFromStringByName(
     const char* dvarName, const char* string, uint64_t source, uint64_t flags, uint64_t createIfMissing)
 {
-    Log::Get()->Print("[Dvar_SetFromStringByName] Name: {}\t Value: {}", dvarName, string);
+    LOG_PRINT("[Dvar_SetFromStringByName] Name: {}\t Value: {}", dvarName, string);
 
     auto result = oDvar_SetFromStringByName(dvarName, string, source, flags, createIfMissing);
-    Log::Get()->Print("dvar_t @ 0x{:X}", (uintptr_t)result);
+    LOG_PRINT("dvar_t @ 0x{:X}", (uintptr_t)result);
 
     return result;
 }
@@ -177,7 +166,7 @@ typedef int32_t(__fastcall* Com_HashString_t)(const char*);
 inline Com_HashString_t oCom_HashString = nullptr;
 inline int32_t hCom_HashString(const char* name)
 {
-    Log::Get()->Print("[Com_HashString] {}", name);
+    LOG_PRINT("[Com_HashString] {}", name);
 
     return oCom_HashString(name);
 }
@@ -186,7 +175,7 @@ typedef size_t(__fastcall* PLmemcpy_t)(char*, size_t, const char*, size_t);
 inline PLmemcpy_t oPLmemcpy = nullptr;
 inline size_t hPLmemcpy(char* dst, size_t len, const char* src, size_t dstSize)
 {
-    Log::Get()->Print("[PLmemcpy] Copy: {} to 0x{:X}", src, (uintptr_t)dst);
+    LOG_PRINT("[PLmemcpy] Copy: {} to 0x{:X}", src, (uintptr_t)dst);
 
     return oPLmemcpy(dst, len, src, dstSize);
 }
@@ -198,7 +187,7 @@ inline __int64 hRegisterLuaEnums(lua_State* luaVM)
     if (!BO3E::luaVM)
     {
         BO3E::luaVM = luaVM;
-        Log::Get()->Print("[RegisterLuaEnums] Set luaVM: 0x{:X}", (uintptr_t)BO3E::luaVM);
+        LOG_PRINT("[RegisterLuaEnums] Set luaVM: 0x{:X}", (uintptr_t)BO3E::luaVM);
     }
 
     return oRegisterLuaEnums(luaVM);
@@ -485,7 +474,7 @@ inline HRESULT __stdcall HookPresent(IDXGISwapChain* pSwapChain, UINT SyncInterv
             HRESULT result = pSwapChain->GetDesc(&swapChainDesc);
             if (FAILED(result))
             {
-                Log::Get()->Error("Failed to get swapchain description");
+                LOG_ERROR("Failed to get swapchain description");
                 return result;
             }
             g_window = swapChainDesc.OutputWindow;
@@ -494,14 +483,14 @@ inline HRESULT __stdcall HookPresent(IDXGISwapChain* pSwapChain, UINT SyncInterv
             result = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<LPVOID*>(&pBackBuffer));
             if (FAILED(result))
             {
-                Log::Get()->Error("Failed to get swapchain back buffer");
+                LOG_ERROR("Failed to get swapchain back buffer");
                 return result;
             }
 
             result = g_pDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_mainRenderTargetView);
             if (FAILED(result))
             {
-                Log::Get()->Error("Failed to create render target view");
+                LOG_ERROR("Failed to create render target view");
                 return result;
             }
             pBackBuffer->Release();
@@ -511,7 +500,7 @@ inline HRESULT __stdcall HookPresent(IDXGISwapChain* pSwapChain, UINT SyncInterv
         }
         else
         {
-            Log::Get()->Error("Failed to get device from swapchain");
+            LOG_ERROR("Failed to get device from swapchain");
             return OriginalPresent(pSwapChain, SyncInterval, Flags);
         }
     }
@@ -542,7 +531,7 @@ static bool HookFunction(const std::unique_ptr<IHook>& acpHook)
             acpHook->Original);
         if (g_status != MH_OK)
         {
-            Log::Get()->Error(
+            LOG_ERROR(
                 "{}Failed to create hook for 0x{:X} {}\t(0x{:X})", NarrowText::Foreground::Red, acpHook->Target,
                 MH_StatusToString(g_status), OFFSET(acpHook->Target));
             return false;
@@ -555,7 +544,7 @@ static bool HookFunction(const std::unique_ptr<IHook>& acpHook)
                                 : MH_DisableHook(reinterpret_cast<void*>((OFFSET(acpHook->Target))));
     if (g_status != MH_OK)
     {
-        Log::Get()->Error(
+        LOG_ERROR(
             "{}Failed to {} hook for 0x{:X} {}", NarrowText::Foreground::Red, acpHook->Enabled ? "enable" : "disable",
             acpHook->Target, MH_StatusToString(g_status));
         return false;

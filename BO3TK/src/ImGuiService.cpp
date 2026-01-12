@@ -8,6 +8,8 @@
 WNDPROC ImGuiService::OriginalWndProc = nullptr;
 ImGuiService* ImGuiService::s_instance = nullptr;
 
+extern std::shared_ptr<EventHandler> g_pEventHandler = nullptr;
+
 ImGuiService* ImGuiService::Init(const HWND& acWindow, ID3D11Device* apDevice, ID3D11DeviceContext* apContext)
 {
     if (!s_instance)
@@ -21,7 +23,7 @@ ImGuiService* ImGuiService::Init(const HWND& acWindow, ID3D11Device* apDevice, I
 
 ImGuiService* ImGuiService::Get()
 {
-    if (!s_instance) { Log::Get()->Error("ImGuiService not initialized. Call Get(window, device, context) first"); }
+    if (!s_instance) { LOG_ERROR("ImGuiService not initialized. Call Get(window, device, context) first"); }
 
     return s_instance;
 }
@@ -126,8 +128,6 @@ void ImGuiService::OnDraw() noexcept
 
 bool ImGuiService::Test()
 {
-    Log* log = Log::Get();
-
     WNDCLASSEX windowClass;
     windowClass.cbSize = sizeof(WNDCLASSEX);
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -150,7 +150,7 @@ bool ImGuiService::Test()
 
     if (const auto cD3d11 = GetModuleHandleA("d3d11.dll"); !cD3d11)
     {
-        log->Error("Failed to find d3d11");
+        LOG_ERROR("Failed to find d3d11");
         return false;
     }
     else
@@ -158,7 +158,7 @@ bool ImGuiService::Test()
         if (void* d3D11CreateDeviceAndSwapChain;
             (d3D11CreateDeviceAndSwapChain = GetProcAddress(cD3d11, "D3D11CreateDeviceAndSwapChain")) == nullptr)
         {
-            log->Error("Failed to find D3D11CreateDeviceAndSwapChain");
+            LOG_ERROR("Failed to find D3D11CreateDeviceAndSwapChain");
 
             DestroyWindow(cWindow);
             UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
@@ -207,7 +207,7 @@ bool ImGuiService::Test()
                     nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, featureLevels, 1, D3D11_SDK_VERSION, &swapChainDesc,
                     &swapChain, &device, &featureLevel, &context) < 0)
             {
-                log->Error("D3D11CreateDeviceAndSwapChain call failed...");
+                LOG_ERROR("D3D11CreateDeviceAndSwapChain call failed...");
                 DestroyWindow(cWindow);
                 UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
                 return false;

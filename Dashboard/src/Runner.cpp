@@ -19,6 +19,9 @@
 #include <QGraphicsOpacityEffect>
 #include <QCheckbox>
 
+#include "LogConsole.h"
+#include "LogEvent.h"
+
 int Runner::Start(const LPWSTR apcCmdLine)
 {
     auto [argc, argv] = ParseCommandLine(apcCmdLine);
@@ -27,16 +30,51 @@ int Runner::Start(const LPWSTR apcCmdLine)
     std::thread(
         [&]()
         {
-            m_eventHandler = std::make_unique<EventHandler>("BO3TK_dll", "BO3TK_exe", true);
-            while (!m_eventHandler->Run())
+            pEventHandler = std::make_unique<EventHandler>("BO3TK_dll", "BO3TK_exe", true);
+            pEventHandler->AddCallback<LogEvent>([](const LogData& acData)
             {
-                Log::Get()->Error("Disconnected from EventHandler...");
-                std::this_thread::sleep_for(std::chrono::milliseconds(m_eventHandler->SleepDuration));
+                std::string level{};
+
+                switch (acData.Type)
+                {
+                    case LogType::Game: 
+                        level = "Game";
+                        break;
+                    case LogType::Hook: 
+                        level = "Hook";
+                        break;
+                    case LogType::Info: 
+                        level = "Info";
+                        break;
+                    case LogType::Warning: 
+                        level = "Warning";
+                        break;
+                    case LogType::Error: 
+                        level = "Error";
+                        break;
+                }
+
+                // make sure only one LogConsole :sdwut:
+                const QPointer cpLogConsole = Dashboard::Window->findChild<LogConsole*>();
+                cpLogConsole->AddLog(std::string("[" + level + "] " + acData.Message).c_str());
+            });
+            while (!pEventHandler->Run())
+            {
+                LOG_ERROR("Disconnected from EventHandler...");
+                std::this_thread::sleep_for(std::chrono::milliseconds(pEventHandler->SleepDuration));
             }
         })
         .detach();
 
     CreateDashboardComponents();
+
+    RECT rect{};
+    const auto cDashboardWindow = GetActiveWindow();
+    GetWindowRect(cDashboardWindow, &rect);
+    const auto cDashboardHeight = rect.bottom - rect.top;
+
+    SetWindowPos(GetConsoleWindow(), nullptr, 0, cDashboardHeight, 0, 0, SWP_NOSIZE);
+    SetWindowPos(cDashboardWindow, nullptr, 0, 0, 0, 0, SWP_NOSIZE);
 
     return Dashboard::Run();
 }
@@ -117,7 +155,7 @@ void Runner::OnLaunchButtonPress(Button* apButton)
         FormatMessageA(
             FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(),
             MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(char)), nullptr);
-        Log::Get()->Error("{}{}", buf, cPath);
+        LOG_ERROR("{}{}", buf, cPath);
 
         apButton->AnimateColors(QColor("#6e1e1e"), QColor("#ff8e8e"));
 
@@ -280,22 +318,22 @@ void Runner::CreateDashboardComponents()
             button->Checkbox, &QCheckBox::toggled,
             [this, button](const bool acChecked)
             {
-                if (!m_eventHandler || !m_eventHandler->WritePipe->Connected) return;
+                if (!pEventHandler || !pEventHandler->WritePipe->Connected) return;
 
-                HookPayload payload{
+                HookData data{
                     .Type = button->Hook->Type,
                     .Enabled = acChecked,
                     .Target = button->Hook->Target,
                     .Detour = button->Hook->Detour};
-                strncpy_s(payload.FuncName, button->Hook->Name.data(), button->Hook->Name.length());
+                strncpy_s(data.FuncName, button->Hook->Name.data(), button->Hook->Name.length());
 
-                if (payload.Type == HookType::Library)
+                if (data.Type == HookType::Library)
                 {
                     const LibHook* cpLib = dynamic_cast<LibHook*>(button->Hook);
-                    strncpy_s(payload.LibName, cpLib->LibName.data(), cpLib->Name.length());
+                    strncpy_s(data.LibName, cpLib->LibName.data(), cpLib->Name.length());
                 }
 
-                m_eventHandler->Send(HookEvent(payload));
+                pEventHandler->Send(HookEvent(data));
             });
 
         cHooksLayout->addWidget(button->Checkbox);
@@ -304,13 +342,10 @@ void Runner::CreateDashboardComponents()
     Dashboard::Layout->addLayout(cHooksLayout);
     Dashboard::Layout->addStretch();
 
-    RECT rect{};
-    const auto cDashboardWindow = GetActiveWindow();
-    GetWindowRect(cDashboardWindow, &rect);
-    const auto cDashboardHeight = rect.bottom - rect.top;
-
-    SetWindowPos(GetConsoleWindow(), nullptr, 0, cDashboardHeight, 0, 0, SWP_NOSIZE);
-    SetWindowPos(cDashboardWindow, nullptr, 0, 0, 0, 0, SWP_NOSIZE);
+    // LogConsole
+    const QPointer cpLogConsole = Dashboard::CreateComponent<LogConsole>(Dashboard::Window);
+    Dashboard::Layout->addWidget(cpLogConsole);
+    Dashboard::Layout->addStretch();
 }
 
 void Runner::AnimateButton(Button* apButton)

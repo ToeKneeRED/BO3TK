@@ -34,7 +34,7 @@ struct Runner
     static void OnLaunchButtonPress(Button* apButton = nullptr);
     static void AnimateButton(Button* apButton = nullptr);
 
+    std::unique_ptr<EventHandler> pEventHandler{};
 private:
-    std::unique_ptr<EventHandler> m_eventHandler{};
     std::vector<HookButton<IHook>*> m_hookButtons{};
 };
